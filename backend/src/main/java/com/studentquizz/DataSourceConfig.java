@@ -65,6 +65,11 @@ public class DataSourceConfig {
             throw new IllegalStateException("DATABASE_URL không hợp lệ: phải bắt đầu bằng postgres:// hoặc jdbc:postgresql://");
         }
 
+        // Bỏ channel_binding=require vì gây lỗi xác thực với JDBC driver
+        jdbcUrl = jdbcUrl
+                .replaceAll("[&?]channel_binding=[^&]*", "")
+                .replaceAll("\\?&", "?");   // sửa ?& thành ? nếu channel_binding ở đầu params
+
         log.info("✅ Connecting to PostgreSQL...");
 
         HikariConfig config = new HikariConfig();
