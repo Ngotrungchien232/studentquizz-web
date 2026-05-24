@@ -72,7 +72,7 @@ public class UserService {
                 .author(AuthorDto.builder().id(post.getAuthor().getId()).name(post.getAuthor().getName()).build())
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
-                .tags(post.getTags())
+                .tags(post.getTags() != null ? new java.util.ArrayList<>(post.getTags()) : new java.util.ArrayList<>())
                 .createdAt(post.getCreatedAt())
                 .status(post.getStatus())
                 .rejectReason(post.getRejectReason())

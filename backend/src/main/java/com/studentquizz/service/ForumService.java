@@ -186,7 +186,7 @@ public class ForumService {
                 .author(toAuthorDto(post.getAuthor()))
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
-                .tags(post.getTags())
+                .tags(post.getTags() != null ? new java.util.ArrayList<>(post.getTags()) : new java.util.ArrayList<>())
                 .createdAt(post.getCreatedAt())
                 .liked(liked)
                 .status(post.getStatus())

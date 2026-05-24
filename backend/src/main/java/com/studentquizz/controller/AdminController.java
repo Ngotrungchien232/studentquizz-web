@@ -214,7 +214,7 @@ public class AdminController {
                         .content(post.getContent())
                         .likeCount(post.getLikeCount())
                         .commentCount(post.getCommentCount())
-                        .tags(post.getTags())
+                        .tags(post.getTags() != null ? new java.util.ArrayList<>(post.getTags()) : new java.util.ArrayList<>())
                         .createdAt(post.getCreatedAt())
                         .status(post.getStatus())
                         .rejectReason(post.getRejectReason())
