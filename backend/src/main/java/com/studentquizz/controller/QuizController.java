@@ -1,0 +1,75 @@
+package com.studentquizz.controller;
+
+import com.studentquizz.dto.CreateQuizRequest;
+import com.studentquizz.dto.QuizDto;
+import com.studentquizz.service.QuizService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/quizzes")
+@RequiredArgsConstructor
+public class QuizController {
+
+    private final QuizService quizService;
+
+    @GetMapping("/featured")
+    public ResponseEntity<List<QuizDto>> getFeatured() {
+        return ResponseEntity.ok(quizService.getFeatured());
+    }
+
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        Page<QuizDto> result = quizService.getAll(page, size);
+        return ResponseEntity.ok(Map.of(
+                "content", result.getContent(),
+                "totalPages", result.getTotalPages(),
+                "totalElements", result.getTotalElements(),
+                "currentPage", page
+        ));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<QuizDto> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(quizService.getById(id));
+    }
+
+    /**
+     * Create quiz - supports both JSON and multipart (with optional file upload)
+     */
+    @PostMapping(consumes = {"multipart/form-data"})
+    public ResponseEntity<QuizDto> createWithFile(
+            @RequestParam String title,
+            @RequestParam String category,
+            @RequestParam(required = false) String description,
+            @RequestParam(defaultValue = "10") Integer questionCount,
+            @RequestParam(required = false) MultipartFile file) {
+
+        CreateQuizRequest req = CreateQuizRequest.builder()
+                .title(title)
+                .category(category)
+                .description(description)
+                .questionCount(questionCount)
+                .build();
+        return ResponseEntity.ok(quizService.create(req, file));
+    }
+
+    @PostMapping(consumes = {"application/json"})
+    public ResponseEntity<QuizDto> create(@RequestBody CreateQuizRequest req) {
+        return ResponseEntity.ok(quizService.create(req, null));
+    }
+
+    @PutMapping("/{id}/appeal")
+    public ResponseEntity<QuizDto> appeal(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        String message = body.getOrDefault("appealMessage", "Tôi muốn khiếu nại.");
+        return ResponseEntity.ok(quizService.appeal(id, message));
+    }
+}

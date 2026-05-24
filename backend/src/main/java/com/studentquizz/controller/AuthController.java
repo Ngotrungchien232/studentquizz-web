@@ -1,0 +1,33 @@
+package com.studentquizz.controller;
+
+import com.studentquizz.dto.AuthDto;
+import com.studentquizz.service.AuthService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthDto.AuthResponse> login(@Valid @RequestBody AuthDto.LoginRequest request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthDto.AuthResponse> register(@Valid @RequestBody AuthDto.RegisterRequest request) {
+        return ResponseEntity.ok(authService.register(request));
+    }
+
+    /** Endpoint riêng cho Admin - chỉ cho phép tài khoản có role ADMIN */
+    @PostMapping("/admin-login")
+    public ResponseEntity<AuthDto.AuthResponse> adminLogin(@Valid @RequestBody AuthDto.LoginRequest request) {
+        return ResponseEntity.ok(authService.adminLogin(request));
+    }
+}
+
