@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: student-quizz-backend
+    env: docker
+    rootDir: backend
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
