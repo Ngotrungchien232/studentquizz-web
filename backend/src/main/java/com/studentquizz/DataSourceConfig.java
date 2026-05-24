@@ -30,22 +30,25 @@ public class DataSourceConfig {
     public DataSource dataSource() {
         // Nếu DATABASE_URL trống → dùng H2 tạm để app không crash
         if (rawDatabaseUrl == null || rawDatabaseUrl.isBlank()) {
-            log.warn("⚠️ DATABASE_URL chưa được cấu hình! Dùng H2 in-memory tạm thời.");
-            HikariConfig config = new HikariConfig();
-            config.setJdbcUrl("jdbc:h2:mem:fallbackdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL");
-            config.setDriverClassName("org.h2.Driver");
-            config.setUsername("sa");
-            config.setPassword("");
-            config.setPoolName("Fallback-H2-Pool");
-            return new HikariDataSource(config);
+            log.warn("⚠️ DATABASE_URL chưa được cấu hình! Đang dùng H2 in-memory tạm thời.");
+            HikariConfig fallbackConfig = new HikariConfig();
+            fallbackConfig.setJdbcUrl("jdbc:h2:mem:fallbackdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL");
+            fallbackConfig.setDriverClassName("org.h2.Driver");
+            fallbackConfig.setUsername("sa");
+            fallbackConfig.setPassword("");
+            fallbackConfig.setPoolName("Fallback-H2-Pool");
+            return new HikariDataSource(fallbackConfig);
         }
+
+        // Loại bỏ khoảng trắng và dấu ngoặc kép (nếu user lỡ copy thừa)
+        String cleanUrl = rawDatabaseUrl.trim().replaceAll("^\"|\"$", "").replaceAll("^'|'$", "");
 
         String jdbcUrl;
         String username = dbUsername;
         String password = dbPassword;
 
-        if (rawDatabaseUrl.startsWith("postgres://") || rawDatabaseUrl.startsWith("postgresql://")) {
-            String withoutScheme = rawDatabaseUrl.replaceFirst("^postgres(ql)?://", "");
+        if (cleanUrl.startsWith("postgres://") || cleanUrl.startsWith("postgresql://")) {
+            String withoutScheme = cleanUrl.replaceFirst("^postgres(ql)?://", "");
             String[] atSplit = withoutScheme.split("@", 2);
             if (atSplit.length == 2) {
                 String userInfo = atSplit[0];
@@ -58,11 +61,17 @@ public class DataSourceConfig {
             } else {
                 jdbcUrl = "jdbc:postgresql://" + withoutScheme;
             }
-        } else if (rawDatabaseUrl.startsWith("jdbc:postgresql://")) {
-            jdbcUrl = rawDatabaseUrl;
+        } else if (cleanUrl.startsWith("jdbc:postgresql://")) {
+            jdbcUrl = cleanUrl;
         } else {
-            log.error("❌ DATABASE_URL không hợp lệ: {}", rawDatabaseUrl.substring(0, Math.min(30, rawDatabaseUrl.length())));
-            throw new IllegalStateException("DATABASE_URL không hợp lệ: phải bắt đầu bằng postgres:// hoặc jdbc:postgresql://");
+            log.error("❌ DATABASE_URL không hợp lệ: {}. Đang dùng H2 in-memory tạm thời.", cleanUrl.substring(0, Math.min(30, cleanUrl.length())));
+            HikariConfig fallbackConfig = new HikariConfig();
+            fallbackConfig.setJdbcUrl("jdbc:h2:mem:fallbackdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL");
+            fallbackConfig.setDriverClassName("org.h2.Driver");
+            fallbackConfig.setUsername("sa");
+            fallbackConfig.setPassword("");
+            fallbackConfig.setPoolName("Fallback-H2-Pool");
+            return new HikariDataSource(fallbackConfig);
         }
 
         // Bỏ channel_binding=require vì gây lỗi xác thực với JDBC driver
