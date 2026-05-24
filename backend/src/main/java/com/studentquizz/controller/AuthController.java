@@ -14,6 +14,14 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/version")
+    public ResponseEntity<java.util.Map<String, String>> getVersion() {
+        return ResponseEntity.ok(java.util.Map.of(
+                "version", "v1.2-tags-and-options-fix",
+                "info", "Updated lazy initialization for tags, question options, and comment replies"
+        ));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<AuthDto.AuthResponse> login(@Valid @RequestBody AuthDto.LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));

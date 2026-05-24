@@ -155,7 +155,7 @@ public class QuizService {
             qDtos = quiz.getQuestions().stream().map(q -> QuestionDto.builder()
                     .id(q.getId())
                     .content(q.getContent())
-                    .options(q.getOptions())
+                    .options(q.getOptions() != null ? new java.util.ArrayList<>(q.getOptions()) : new java.util.ArrayList<>())
                     .correctAnswer(q.getCorrectAnswer())
                     .explanation(q.getExplanation())
                     .build()).collect(Collectors.toList());
