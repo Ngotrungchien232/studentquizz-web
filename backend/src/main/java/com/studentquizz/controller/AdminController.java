@@ -21,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AdminController {
 
     private final UserRepository userRepository;
@@ -64,6 +65,7 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/role")
+    @Transactional
     public ResponseEntity<Map<String, String>> updateRole(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
@@ -79,6 +81,7 @@ public class AdminController {
     }
 
     @PutMapping("/users/{id}/lock")
+    @Transactional
     public ResponseEntity<Map<String, Object>> updateUserLock(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body) {
@@ -173,6 +176,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/quizzes/{id}")
+    @Transactional
     public ResponseEntity<Map<String, String>> deleteQuiz(@PathVariable Long id) {
         if (!quizRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
@@ -182,6 +186,7 @@ public class AdminController {
     }
 
     @PutMapping("/quizzes/{id}/featured")
+    @Transactional
     public ResponseEntity<Map<String, Object>> toggleFeatured(@PathVariable Long id) {
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
@@ -227,6 +232,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/forum/posts/{id}")
+    @Transactional
     public ResponseEntity<Map<String, String>> deletePost(@PathVariable Long id) {
         if (!forumPostRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
@@ -238,6 +244,7 @@ public class AdminController {
     }
 
     @PutMapping("/quizzes/{id}/status")
+    @Transactional
     public ResponseEntity<Map<String, Object>> updateQuizStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
@@ -266,6 +273,7 @@ public class AdminController {
     }
 
     @PutMapping("/forum/posts/{id}/status")
+    @Transactional
     public ResponseEntity<Map<String, Object>> updatePostStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {

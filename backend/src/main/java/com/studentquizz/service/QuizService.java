@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 public class QuizService {
 
     private final QuizRepository quizRepository;
