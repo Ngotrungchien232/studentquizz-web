@@ -1,0 +1,12 @@
+node_modules/
+target/
+.gemini/
+data/
+*.mv.db
+*.db
+.idea/
+.vscode/
+*.class
+*.log
+.env
+.env.local
