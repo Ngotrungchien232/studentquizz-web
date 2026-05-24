@@ -47,7 +47,7 @@ const CreatePage = () => {
 
   const simulateProcessing = () => {
     const delays = [1000, 2000, 1500];
-    delays.forEach((delay, i) => {
+    delays.forEach((_, i) => {
       setTimeout(() => setProcessingStep(i + 1), delays.slice(0, i + 1).reduce((a, b) => a + b, 0));
     });
   };

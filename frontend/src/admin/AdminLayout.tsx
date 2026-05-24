@@ -1,5 +1,5 @@
 import React from 'react';
-import { adminService } from './adminService';
+
 import './admin.css';
 
 interface AdminLayoutProps {
