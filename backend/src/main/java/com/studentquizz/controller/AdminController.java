@@ -3,6 +3,7 @@ package com.studentquizz.controller;
 import com.studentquizz.model.ForumPost;
 import com.studentquizz.model.Quiz;
 import com.studentquizz.model.User;
+import com.studentquizz.repository.ForumCommentRepository;
 import com.studentquizz.repository.ForumPostRepository;
 import com.studentquizz.repository.QuizRepository;
 import com.studentquizz.repository.UserRepository;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -24,6 +26,7 @@ public class AdminController {
     private final UserRepository userRepository;
     private final QuizRepository quizRepository;
     private final ForumPostRepository forumPostRepository;
+    private final ForumCommentRepository forumCommentRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
@@ -75,12 +78,32 @@ public class AdminController {
     }
 
     @DeleteMapping("/users/{id}")
+    @Transactional
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long id) {
         if (!userRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+
+        // 1. Delete comments written by the user
+        forumCommentRepository.deleteByAuthorId(id);
+
+        // 2. Find and delete all posts by the user (and comments on those posts)
+        java.util.List<ForumPost> posts = forumPostRepository.findByAuthorIdOrderByCreatedAtDesc(id);
+        for (ForumPost post : posts) {
+            forumCommentRepository.deleteByPostId(post.getId());
+            forumPostRepository.delete(post);
+        }
+
+        // 3. Find and delete all quizzes by the user
+        java.util.List<Quiz> quizzes = quizRepository.findByAuthorIdOrderByCreatedAtDesc(id);
+        for (Quiz quiz : quizzes) {
+            quizRepository.delete(quiz);
+        }
+
+        // 4. Finally, delete the user
         userRepository.deleteById(id);
-        return ResponseEntity.ok(Map.of("message", "User deleted"));
+
+        return ResponseEntity.ok(Map.of("message", "User and all related data deleted"));
     }
 
     // ─── Quiz Management ─────────────────────────────────────────────────────

@@ -40,10 +40,12 @@ public class ForumService {
         User author = getCurrentUser();
         String initialStatus = "ADMIN".equals(author.getRole()) ? "APPROVED" : "PENDING";
         
+        List<String> tags = req.getTags() != null ? req.getTags() : new java.util.ArrayList<>();
+        
         ForumPost post = ForumPost.builder()
                 .title(req.getTitle())
                 .content(req.getContent())
-                .tags(req.getTags())
+                .tags(tags)
                 .author(author)
                 .status(initialStatus)
                 .build();

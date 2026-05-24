@@ -13,7 +13,13 @@ const api = axios.create({
 
 // Request interceptor – attach token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('admin_token');
+  if (config.headers.Authorization) {
+    return config;
+  }
+  const isAdminPath = config.url?.startsWith('/admin');
+  const token = isAdminPath
+    ? (localStorage.getItem('admin_token') || localStorage.getItem('token'))
+    : (localStorage.getItem('token') || localStorage.getItem('admin_token'));
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

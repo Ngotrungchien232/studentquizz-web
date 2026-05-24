@@ -25,9 +25,8 @@ public class AiQuizGeneratorService {
     // Danh sách model sẽ thử theo thứ tự (fallback chain)
     private static final List<String> MODEL_FALLBACK_CHAIN = List.of(
             "gemini-2.0-flash",
-            "gemini-2.5-flash",
             "gemini-2.0-flash-lite",
-            "gemini-flash-latest"
+            "gemini-1.5-flash"
     );
 
     private static final String BASE_URL =
@@ -38,8 +37,8 @@ public class AiQuizGeneratorService {
 
     public List<QuestionDto> generateQuestions(String text, int questionCount, String title) {
         if (apiKey == null || apiKey.isBlank() || "YOUR_API_KEY".equals(apiKey)) {
-            log.warn("⚠️ Gemini API Key chưa được cấu hình.");
-            return Collections.emptyList();
+            log.warn("⚠️ Gemini API Key chưa được cấu hình. Sử dụng câu hỏi mẫu.");
+            return generateMockQuestions(title, questionCount);
         }
 
         String prompt = buildPrompt(text, questionCount, title);
@@ -66,8 +65,8 @@ public class AiQuizGeneratorService {
             }
         }
 
-        log.error("❌ Tất cả model đều thất bại. Quota có thể đã hết. Kiểm tra: https://ai.dev/rate-limit");
-        return Collections.emptyList();
+        log.error("❌ Tất cả model đều thất bại. Quota có thể đã hết. Sử dụng câu hỏi mẫu fallback.");
+        return generateMockQuestions(title, questionCount);
     }
 
     private List<QuestionDto> callGeminiModel(String model, String prompt) throws Exception {
@@ -150,5 +149,23 @@ public class AiQuizGeneratorService {
             }
             throw new RuntimeException("Không parse được JSON: " + e.getMessage());
         }
+    }
+
+    private List<QuestionDto> generateMockQuestions(String title, int count) {
+        List<QuestionDto> list = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            list.add(QuestionDto.builder()
+                    .content("Câu hỏi trắc nghiệm số " + i + " về chủ đề: " + title + "?")
+                    .options(List.of(
+                            "Đáp án A cho câu hỏi số " + i,
+                            "Đáp án B cho câu hỏi số " + i,
+                            "Đáp án C cho câu hỏi số " + i,
+                            "Đáp án D cho câu hỏi số " + i
+                    ))
+                    .correctAnswer(0)
+                    .explanation("Đây là câu hỏi mẫu được tự động tạo do hệ thống không kết nối được tới AI.")
+                    .build());
+        }
+        return list;
     }
 }
