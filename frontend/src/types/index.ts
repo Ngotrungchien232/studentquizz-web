@@ -54,6 +54,9 @@ export interface ForumComment {
   };
   createdAt: string;
   likeCount: number;
+  parentId?: number;
+  replyToAuthorName?: string;
+  replies?: ForumComment[];
 }
 
 export interface User {

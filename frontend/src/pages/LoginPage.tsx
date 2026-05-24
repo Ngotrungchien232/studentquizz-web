@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { authService } from '../services/quizService';
@@ -16,6 +16,14 @@ const LoginPage = () => {
   const { login } = useAuth();
 
   const from = (location.state as { from?: string })?.from || '/';
+
+  useEffect(() => {
+    const lockMsg = sessionStorage.getItem('accountLockMessage');
+    if (lockMsg) {
+      setError(lockMsg);
+      sessionStorage.removeItem('accountLockMessage');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

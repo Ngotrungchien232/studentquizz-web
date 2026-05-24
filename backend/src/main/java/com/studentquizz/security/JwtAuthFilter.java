@@ -35,7 +35,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String email = jwtUtil.extractEmail(token);
                 String role = jwtUtil.extractRole(token);
 
-                userRepository.findByEmail(email).ifPresent(user -> {
+                var userOpt = userRepository.findByEmail(email);
+                if (userOpt.isPresent()) {
+                    var appUser = userOpt.get();
+                    if (Boolean.TRUE.equals(appUser.getLocked()) && !"ADMIN".equals(appUser.getRole())) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        String msg = appUser.getLockReason() != null && !appUser.getLockReason().isBlank()
+                                ? "Tài khoản đã bị khóa. Lý do: " + appUser.getLockReason()
+                                : "Tài khoản đã bị khóa.";
+                        response.getWriter().write("{\"message\":\"" + msg.replace("\"", "'") + "\"}");
+                        return;
+                    }
+
                     List<SimpleGrantedAuthority> authorities = List.of(
                             new SimpleGrantedAuthority("ROLE_" + (role != null ? role : "USER"))
                     );
@@ -46,7 +58,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     authorities
                             );
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                });
+                }
             }
         }
 

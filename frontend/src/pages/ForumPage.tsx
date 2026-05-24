@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, ThumbsUp, MessageCircle, Search, TrendingUp, Clock, Tag } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 import type { ForumPost } from '../types';
 import CreatePostModal from '../components/Forum/CreatePostModal';
 import './ForumPage.css';
@@ -32,6 +33,7 @@ const ForumPage = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [activeTag, setActiveTag] = useState('');
   const { isAuthenticated } = useAuth();
+  const { alert: showAlert } = useDialog();
 
   const allTags = Array.from(new Set(posts.flatMap(p => p.tags || [])));
 
@@ -87,7 +89,11 @@ const ForumPage = () => {
     if (newPost.status === 'APPROVED') {
       setPosts(prev => [newPost, ...prev]);
     } else {
-      alert('Đăng bài thành công! Bài viết của bạn đang chờ Admin duyệt.');
+      void showAlert({
+        title: 'Đăng bài thành công',
+        message: 'Bài viết của bạn đang chờ Admin duyệt. Bạn sẽ thấy bài trên diễn đàn sau khi được duyệt.',
+        variant: 'success',
+      });
     }
     setShowCreate(false);
   };

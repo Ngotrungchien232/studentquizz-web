@@ -18,6 +18,11 @@ export const quizService = {
     return data;
   },
 
+  recordPlay: async (id: number): Promise<Quiz> => {
+    const { data } = await api.post(`/quizzes/${id}/play`);
+    return data;
+  },
+
   create: async (req: CreateQuizRequest, file?: File): Promise<Quiz> => {
     const formData = new FormData();
     formData.append('title', req.title);
@@ -78,8 +83,8 @@ export const forumService = {
     return data;
   },
 
-  addComment: async (postId: number, content: string): Promise<ForumComment> => {
-    const { data } = await api.post(`/forum/posts/${postId}/comments`, { content });
+  addComment: async (postId: number, content: string, parentId?: number): Promise<ForumComment> => {
+    const { data } = await api.post(`/forum/posts/${postId}/comments`, { content, parentId });
     return data;
   },
 

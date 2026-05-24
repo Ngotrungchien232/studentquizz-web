@@ -13,10 +13,12 @@ import ForumPostPage from './pages/ForumPostPage';
 import QuizPlayPage from './pages/QuizPlayPage';
 import ProfilePage from './pages/ProfilePage';
 import AdminApp from './admin/AdminApp';
+import NotificationModal from './components/NotificationModal';
 
 function App() {
   return (
     <AuthProvider>
+      <NotificationModal />
       <BrowserRouter>
         <Routes>
           {/* ── Admin routes (no Navbar/Footer) ── */}

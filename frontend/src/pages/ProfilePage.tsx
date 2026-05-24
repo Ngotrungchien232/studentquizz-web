@@ -3,17 +3,31 @@ import { Link } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { quizService, forumService } from '../services/quizService';
 import type { UserProfile } from '../services/userService';
+import AppealModal from '../components/AppealModal';
 import './ProfilePage.css';
+
+type AppealTarget = {
+  type: 'quiz' | 'post';
+  id: number;
+  title: string;
+  rejectReason?: string;
+};
 
 const ProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appealTarget, setAppealTarget] = useState<AppealTarget | null>(null);
+  const [appealSuccess, setAppealSuccess] = useState('');
+
+  const refreshProfile = async () => {
+    const data = await userService.getMyProfile();
+    setProfile(data);
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await userService.getMyProfile();
-        setProfile(data);
+        await refreshProfile();
       } catch (error) {
         console.error('Lỗi khi tải hồ sơ:', error);
       } finally {
@@ -23,32 +37,16 @@ const ProfilePage: React.FC = () => {
     fetchProfile();
   }, []);
 
-  const handleQuizAppeal = async (e: React.MouseEvent, quizId: number) => {
-    e.preventDefault(); // prevent navigation
-    const message = window.prompt("Nhập nội dung khiếu nại cho bài Quiz này:");
-    if (!message) return;
-    try {
-      await quizService.appeal(quizId, message);
-      alert("Đã gửi khiếu nại thành công! Bài Quiz sẽ được Admin xem xét lại.");
-      const data = await userService.getMyProfile();
-      setProfile(data);
-    } catch (error) {
-      alert("Lỗi khi gửi khiếu nại.");
+  const handleAppealSubmit = async (message: string) => {
+    if (!appealTarget) return;
+    if (appealTarget.type === 'quiz') {
+      await quizService.appeal(appealTarget.id, message);
+    } else {
+      await forumService.appeal(appealTarget.id, message);
     }
-  };
-
-  const handlePostAppeal = async (e: React.MouseEvent, postId: number) => {
-    e.preventDefault(); // prevent navigation
-    const message = window.prompt("Nhập nội dung khiếu nại cho bài viết này:");
-    if (!message) return;
-    try {
-      await forumService.appeal(postId, message);
-      alert("Đã gửi khiếu nại thành công! Bài viết sẽ được Admin xem xét lại.");
-      const data = await userService.getMyProfile();
-      setProfile(data);
-    } catch (error) {
-      alert("Lỗi khi gửi khiếu nại.");
-    }
+    await refreshProfile();
+    setAppealSuccess('Đã gửi khiếu nại thành công! Admin sẽ xem xét lại trong thời gian sớm nhất.');
+    setTimeout(() => setAppealSuccess(''), 5000);
   };
 
   if (loading) {
@@ -61,6 +59,19 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="profile-container">
+      {appealTarget && (
+        <AppealModal
+          title={appealTarget.title}
+          rejectReason={appealTarget.rejectReason}
+          onClose={() => setAppealTarget(null)}
+          onSubmit={handleAppealSubmit}
+        />
+      )}
+
+      {appealSuccess && (
+        <div className="profile-alert profile-alert--success">{appealSuccess}</div>
+      )}
+
       <div className="profile-header">
         {profile.avatar ? (
           <img src={profile.avatar} alt={profile.name} className="profile-avatar" />
@@ -96,10 +107,10 @@ const ProfilePage: React.FC = () => {
                 'REJECTED': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', label: '❌ Từ chối' },
               };
               const st = stColors[quiz.status || 'PENDING'] || stColors['PENDING'];
-              
+
               return (
-              <Link to={`/quiz/${quiz.id}`} key={quiz.id} className="quiz-card" style={{textDecoration: 'none'}}>
-                <div className="quiz-card-content">
+              <div key={quiz.id} className="quiz-card">
+                <Link to={`/quiz/${quiz.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span className="category-badge">{quiz.category}</span>
                     <span style={{
@@ -110,38 +121,50 @@ const ProfilePage: React.FC = () => {
                     </span>
                   </div>
                   <h3>{quiz.title}</h3>
-
                   <div className="quiz-meta">
                     <span>📝 {quiz.questionCount} câu hỏi</span>
                     <span>▶️ {quiz.playCount} lượt chơi</span>
                   </div>
+                </Link>
 
-                  {quiz.status === 'REJECTED' && (
-                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
-                      <p style={{ color: '#b91c1c', marginBottom: '8px' }}>
-                        <strong>Lý do từ chối:</strong> {quiz.rejectReason || 'Không có lý do.'}
-                      </p>
-                      <button 
-                        onClick={(e) => handleQuizAppeal(e, quiz.id)}
-                        style={{ background: '#ef4444', color: 'white', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, width: '100%' }}
-                      >
-                        Gửi Khiếu Nại
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Link>
+                {quiz.status === 'PENDING' && quiz.appealMessage && (
+                  <div className="profile-moderation-box profile-moderation-box--pending">
+                    <strong>Đã gửi khiếu nại</strong>
+                    <p>{quiz.appealMessage}</p>
+                    <span className="profile-moderation-hint">Admin đang xem xét lại.</span>
+                  </div>
+                )}
+
+                {quiz.status === 'REJECTED' && (
+                  <div className="profile-moderation-box profile-moderation-box--rejected">
+                    <strong>Lý do admin từ chối:</strong>
+                    <p>{quiz.rejectReason || 'Không có lý do cụ thể.'}</p>
+                    <button
+                      type="button"
+                      className="profile-appeal-btn"
+                      onClick={() => setAppealTarget({
+                        type: 'quiz',
+                        id: quiz.id,
+                        title: quiz.title,
+                        rejectReason: quiz.rejectReason,
+                      })}
+                    >
+                      Gửi khiếu nại
+                    </button>
+                  </div>
+                )}
+              </div>
               );
             })}
-
           </div>
         ) : (
           <div className="empty-state">
             <p>Bạn chưa tạo bài quiz nào.</p>
-            <Link to="/create-quiz" className="primary-btn" style={{display: 'inline-block', marginTop: '10px'}}>Tạo Quiz Ngay</Link>
+            <Link to="/create" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Tạo Quiz Ngay</Link>
           </div>
         )}
       </div>
+
       <div className="profile-content" style={{ marginTop: '30px' }}>
         <h2>Bài viết diễn đàn của tôi</h2>
         {profile.posts && profile.posts.length > 0 ? (
@@ -153,10 +176,10 @@ const ProfilePage: React.FC = () => {
                 'REJECTED': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', label: '❌ Từ chối' },
               };
               const st = stColors[post.status || 'PENDING'] || stColors['PENDING'];
-              
+
               return (
-              <Link to={`/forum/${post.id}`} key={`post-${post.id}`} className="quiz-card" style={{textDecoration: 'none'}}>
-                <div className="quiz-card-content">
+              <div key={`post-${post.id}`} className="quiz-card">
+                <Link to={`/forum/${post.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span className="category-badge" style={{ background: '#eef2ff', color: '#4f46e5' }}>Diễn đàn</span>
                     <span style={{
@@ -167,35 +190,46 @@ const ProfilePage: React.FC = () => {
                     </span>
                   </div>
                   <h3>{post.title}</h3>
-
                   <div className="quiz-meta">
                     <span>👍 {post.likeCount} Thích</span>
                     <span>💬 {post.commentCount} Bình luận</span>
                   </div>
+                </Link>
 
-                  {post.status === 'REJECTED' && (
-                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', fontSize: '0.85rem' }}>
-                      <p style={{ color: '#b91c1c', marginBottom: '8px' }}>
-                        <strong>Lý do từ chối:</strong> {post.rejectReason || 'Không có lý do.'}
-                      </p>
-                      <button 
-                        onClick={(e) => handlePostAppeal(e, post.id)}
-                        style={{ background: '#ef4444', color: 'white', padding: '6px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, width: '100%' }}
-                      >
-                        Gửi Khiếu Nại
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </Link>
+                {post.status === 'PENDING' && post.appealMessage && (
+                  <div className="profile-moderation-box profile-moderation-box--pending">
+                    <strong>Đã gửi khiếu nại</strong>
+                    <p>{post.appealMessage}</p>
+                    <span className="profile-moderation-hint">Admin đang xem xét lại.</span>
+                  </div>
+                )}
+
+                {post.status === 'REJECTED' && (
+                  <div className="profile-moderation-box profile-moderation-box--rejected">
+                    <strong>Lý do admin từ chối:</strong>
+                    <p>{post.rejectReason || 'Không có lý do cụ thể.'}</p>
+                    <button
+                      type="button"
+                      className="profile-appeal-btn"
+                      onClick={() => setAppealTarget({
+                        type: 'post',
+                        id: post.id,
+                        title: post.title,
+                        rejectReason: post.rejectReason,
+                      })}
+                    >
+                      Gửi khiếu nại
+                    </button>
+                  </div>
+                )}
+              </div>
               );
             })}
-
           </div>
         ) : (
           <div className="empty-state">
             <p>Bạn chưa đăng bài viết nào trên diễn đàn.</p>
-            <Link to="/forum" className="primary-btn" style={{display: 'inline-block', marginTop: '10px'}}>Khám phá Diễn đàn</Link>
+            <Link to="/forum" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Khám phá Diễn đàn</Link>
           </div>
         )}
       </div>

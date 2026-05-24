@@ -30,6 +30,9 @@ public class ForumDto {
         private AuthorDto author;
         private Long likeCount;
         private LocalDateTime createdAt;
+        private Long parentId;
+        private String replyToAuthorName;
+        private List<CommentResponse> replies;
     }
 
     @Data
@@ -42,6 +45,7 @@ public class ForumDto {
     @Data
     public static class CreateCommentRequest {
         private String content;
+        private Long parentId;
     }
 
     @Data @Builder @AllArgsConstructor @NoArgsConstructor

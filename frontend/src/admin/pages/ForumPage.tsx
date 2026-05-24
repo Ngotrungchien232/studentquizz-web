@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../adminService';
+import RejectModal from '../components/RejectModal';
+import { useDialog } from '../../context/DialogContext';
+import '../components/AdminModals.css';
 
 interface Post {
   id: number;
@@ -16,12 +19,14 @@ interface Post {
 
 
 const ForumPage: React.FC = () => {
+  const { confirm, alert: showAlert } = useDialog();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{ id: number; title: string } | null>(null);
 
   const load = async (p = 0) => {
     setLoading(true);
@@ -39,42 +44,52 @@ const ForumPage: React.FC = () => {
   useEffect(() => { load(0); }, []);
 
   const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`Xóa bài viết "${title}"?`)) return;
+    const ok = await confirm({
+      title: 'Xóa bài viết',
+      message: `Bạn có chắc muốn xóa "${title}"?\nMọi bình luận liên quan cũng sẽ bị xóa.`,
+      confirmText: 'Xóa',
+      variant: 'danger',
+      theme: 'admin',
+    });
+    if (!ok) return;
     setDeleting(id);
     try {
       await adminService.deletePost(id);
       setPosts(posts.filter(p => p.id !== id));
       setTotalElements(t => t - 1);
     } catch {
-      alert('Lỗi khi xóa bài viết!');
+      await showAlert({ title: 'Lỗi', message: 'Không thể xóa bài viết.', variant: 'danger', theme: 'admin' });
     } finally {
       setDeleting(null);
     }
   };
 
   const handleStatusUpdate = async (id: number, status: string, title: string) => {
-    if (!confirm(`Xác nhận chuyển bài viết "${title}" sang trạng thái ${status}?`)) return;
+    const ok = await confirm({
+      title: 'Xác nhận duyệt',
+      message: `Duyệt bài viết "${title}"?`,
+      confirmText: 'Duyệt',
+      variant: 'success',
+      theme: 'admin',
+    });
+    if (!ok) return;
     try {
       await adminService.updatePostStatus(id, status);
       setPosts(posts.map(p => p.id === id ? { ...p, status } : p));
     } catch {
-      alert('Lỗi khi cập nhật trạng thái!');
+      await showAlert({ title: 'Lỗi', message: 'Không thể cập nhật trạng thái.', variant: 'danger', theme: 'admin' });
     }
   };
 
-  const handleReject = async (id: number, title: string) => {
-    const reason = window.prompt(`Nhập lý do từ chối bài viết "${title}":`);
-    if (reason === null) return;
-    if (!reason.trim()) {
-      alert("Bạn phải nhập lý do từ chối.");
-      return;
-    }
-    try {
-      await adminService.updatePostStatus(id, 'REJECTED', reason);
-      setPosts(posts.map(p => p.id === id ? { ...p, status: 'REJECTED' } : p));
-    } catch {
-      alert('Lỗi khi từ chối!');
-    }
+  const handleRejectConfirm = async (reason: string) => {
+    if (!rejectTarget) return;
+    const res = await adminService.updatePostStatus(rejectTarget.id, 'REJECTED', reason);
+    setPosts(posts.map(p => p.id === rejectTarget.id ? {
+      ...p,
+      status: 'REJECTED',
+      rejectReason: res.rejectReason || reason,
+      appealMessage: undefined,
+    } : p));
   };
 
   const statusColors: Record<string, { bg: string, text: string, label: string }> = {
@@ -85,6 +100,14 @@ const ForumPage: React.FC = () => {
 
   return (
     <div>
+      {rejectTarget && (
+        <RejectModal
+          title="Từ chối bài viết"
+          itemLabel={rejectTarget.title}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={handleRejectConfirm}
+        />
+      )}
       <div className="admin-card">
         <div className="admin-card-header">
           <h2 className="admin-card-title">
@@ -185,7 +208,7 @@ const ForumPage: React.FC = () => {
                                 <button
                                   className="admin-btn"
                                   style={{ background: '#ef4444', color: 'white' }}
-                                  onClick={() => handleReject(post.id, post.title)}
+                                  onClick={() => setRejectTarget({ id: post.id, title: post.title })}
                                 >
                                   Từ chối
                                 </button>
@@ -199,9 +222,14 @@ const ForumPage: React.FC = () => {
                               {deleting === post.id ? '⏳' : '🗑️'} Xóa
                             </button>
                           </div>
+                          {post.rejectReason && post.status === 'REJECTED' && (
+                            <div className="admin-moderation-note admin-moderation-note--reject">
+                              <strong>Lý do từ chối:</strong> {post.rejectReason}
+                            </div>
+                          )}
                           {post.appealMessage && post.status === 'PENDING' && (
-                            <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#b91c1c', background: '#fee2e2', padding: '4px 8px', borderRadius: '4px' }}>
-                              <strong>🚨 Khiếu nại:</strong> {post.appealMessage}
+                            <div className="admin-moderation-note admin-moderation-note--appeal">
+                              <strong>🚨 Khiếu nại từ user:</strong> {post.appealMessage}
                             </div>
                           )}
                       </td>

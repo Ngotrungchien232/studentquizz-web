@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -44,7 +45,21 @@ public class QuizService {
     public QuizDto getById(Long id) {
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found: " + id));
+        if (!"APPROVED".equals(quiz.getStatus()) && !canViewUnapproved(quiz)) {
+            throw new RuntimeException("Quiz chưa được duyệt hoặc không khả dụng.");
+        }
         return toDto(quiz);
+    }
+
+    @Transactional
+    public QuizDto incrementPlayCount(Long id) {
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Quiz not found: " + id));
+        if (!"APPROVED".equals(quiz.getStatus())) {
+            throw new RuntimeException("Chỉ có thể chơi quiz đã được duyệt.");
+        }
+        quiz.setPlayCount(quiz.getPlayCount() + 1);
+        return toDto(quizRepository.save(quiz));
     }
 
     @Transactional
@@ -106,9 +121,23 @@ public class QuizService {
 
 
     private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
+        return getCurrentUserOptional()
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    private Optional<User> getCurrentUserOptional() {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return Optional.empty();
+        }
+        return userRepository.findByEmail(auth.getName());
+    }
+
+    private boolean canViewUnapproved(Quiz quiz) {
+        return getCurrentUserOptional()
+                .map(user -> quiz.getAuthor() != null && (
+                        quiz.getAuthor().getId().equals(user.getId()) || "ADMIN".equals(user.getRole())))
+                .orElse(false);
     }
 
     private QuizDto toDto(Quiz quiz) {
@@ -158,8 +187,11 @@ public class QuizService {
         if (!"REJECTED".equals(quiz.getStatus())) {
             throw new RuntimeException("Chỉ có thể khiếu nại những bài bị từ chối.");
         }
+        if (message == null || message.trim().isEmpty()) {
+            throw new RuntimeException("Vui lòng nhập nội dung khiếu nại.");
+        }
 
-        quiz.setAppealMessage(message);
+        quiz.setAppealMessage(message.trim());
         quiz.setStatus("PENDING");
         quiz.setRejectReason(null);
         return toDto(quizRepository.save(quiz));

@@ -47,6 +47,13 @@ export const adminService = {
     });
   },
 
+  updateUserLock: async (id: number, locked: boolean, lockReason?: string) => {
+    const { data } = await api.put(`/admin/users/${id}/lock`, { locked, lockReason }, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(ADMIN_TOKEN_KEY)}` },
+    });
+    return data as { locked: boolean; lockReason: string; message: string };
+  },
+
   // ─── Quizzes ─────────────────────────────────────────────────────────────
   getQuizzes: async (page = 0, size = 10) => {
     const { data } = await api.get(`/admin/quizzes?page=${page}&size=${size}`, {
@@ -66,6 +73,13 @@ export const adminService = {
     await api.delete(`/admin/quizzes/${id}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem(ADMIN_TOKEN_KEY)}` },
     });
+  },
+
+  toggleQuizFeatured: async (id: number) => {
+    const { data } = await api.put(`/admin/quizzes/${id}/featured`, {}, {
+      headers: { Authorization: `Bearer ${localStorage.getItem(ADMIN_TOKEN_KEY)}` },
+    });
+    return data as { featured: boolean; message: string };
   },
 
   // ─── Forum ───────────────────────────────────────────────────────────────

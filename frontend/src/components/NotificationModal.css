@@ -1,0 +1,116 @@
+.notif-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  animation: notif-fade-in 0.25s ease;
+}
+
+.notif-box {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  padding: 32px 28px 28px;
+  background: var(--card-bg);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 24px 48px rgba(124, 58, 237, 0.18), 0 8px 24px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--card-border);
+  text-align: center;
+  animation: notif-slide-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.notif-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.notif-close-btn:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.notif-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  border-radius: var(--border-radius-full);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.pulse-icon {
+  animation: notif-pulse 2s ease-in-out infinite;
+}
+
+.notif-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.notif-content {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.notif-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-white);
+  background: var(--primary-gradient);
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+}
+
+.notif-btn:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+@keyframes notif-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes notif-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes notif-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}

@@ -42,6 +42,11 @@ public class QuizController {
         return ResponseEntity.ok(quizService.getById(id));
     }
 
+    @PostMapping("/{id}/play")
+    public ResponseEntity<QuizDto> recordPlay(@PathVariable Long id) {
+        return ResponseEntity.ok(quizService.incrementPlayCount(id));
+    }
+
     /**
      * Create quiz - supports both JSON and multipart (with optional file upload)
      */

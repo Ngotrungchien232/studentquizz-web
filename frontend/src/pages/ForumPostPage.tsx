@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ThumbsUp, MessageCircle, Send, Loader2 } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
+import CommentThread from '../components/Forum/CommentThread';
 import type { ForumPost, ForumComment } from '../types';
 import './ForumPostPage.css';
 
@@ -21,6 +23,9 @@ const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#
 const getInitials = (name: string) =>
   name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
+const countAllComments = (comments: ForumComment[]): number =>
+  comments.reduce((sum, c) => sum + 1 + countAllComments(c.replies || []), 0);
+
 const ForumPostPage = () => {
   const { id } = useParams<{ id: string }>();
   const [post, setPost] = useState<ForumPost | null>(null);
@@ -29,6 +34,14 @@ const ForumPostPage = () => {
   const [commentText, setCommentText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { isAuthenticated, user } = useAuth();
+  const { alert } = useDialog();
+
+  const loadComments = useCallback(async () => {
+    if (!id) return;
+    const c = await forumService.getComments(Number(id));
+    setComments(c);
+    return c;
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -42,34 +55,47 @@ const ForumPostPage = () => {
     });
   }, [id]);
 
+  const totalComments = countAllComments(comments);
+
   const handleLike = async () => {
     if (!isAuthenticated || !post) return;
-    setPost(prev => prev ? {
-      ...prev,
-      liked: !prev.liked,
-      likeCount: prev.liked ? prev.likeCount - 1 : prev.likeCount + 1
-    } : null);
-    await forumService.toggleLike(post.id).catch(() => {
-      setPost(prev => prev ? {
-        ...prev,
-        liked: !prev.liked,
-        likeCount: prev.liked ? prev.likeCount - 1 : prev.likeCount + 1
-      } : null);
-    });
+    try {
+      const res = await forumService.toggleLike(post.id);
+      setPost(prev => prev ? { ...prev, liked: res.liked, likeCount: res.likeCount } : null);
+    } catch {
+      await alert({
+        title: 'Không thể thích',
+        message: 'Đã có lỗi khi cập nhật lượt thích. Vui lòng thử lại.',
+        variant: 'danger',
+      });
+    }
   };
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentText.trim() || !isAuthenticated) return;
+    if (!commentText.trim() || !isAuthenticated || !id) return;
     setSubmitting(true);
     try {
-      const newComment = await forumService.addComment(Number(id), commentText.trim());
-      setComments(prev => [...prev, newComment]);
-      setPost(prev => prev ? { ...prev, commentCount: prev.commentCount + 1 } : null);
+      await forumService.addComment(Number(id), commentText.trim());
+      const updated = await loadComments();
+      setPost(prev => prev ? {
+        ...prev,
+        commentCount: updated ? countAllComments(updated) : prev.commentCount + 1,
+      } : null);
       setCommentText('');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleReply = async (parentId: number, content: string) => {
+    if (!id) return;
+    await forumService.addComment(Number(id), content, parentId);
+    const updated = await loadComments();
+    setPost(prev => prev ? {
+      ...prev,
+      commentCount: updated ? countAllComments(updated) : (prev.commentCount + 1),
+    } : null);
   };
 
   if (loading) {
@@ -103,9 +129,7 @@ const ForumPostPage = () => {
         </Link>
 
         <div className="forum-post-layout">
-          {/* Main post */}
           <article className="forum-post-article card">
-            {/* Author */}
             <div className="fpa-author">
               <div
                 className="fpa-avatar"
@@ -119,7 +143,6 @@ const ForumPostPage = () => {
               </div>
             </div>
 
-            {/* Tags */}
             {post.tags && post.tags.length > 0 && (
               <div className="fpa-tags">
                 {post.tags.map(tag => (
@@ -128,11 +151,9 @@ const ForumPostPage = () => {
               </div>
             )}
 
-            {/* Title + content */}
             <h1 className="fpa-title">{post.title}</h1>
             <div className="fpa-content">{post.content}</div>
 
-            {/* Actions */}
             <div className="fpa-actions">
               <button
                 className={`fpc-action-btn ${post.liked ? 'liked' : ''}`}
@@ -145,16 +166,14 @@ const ForumPostPage = () => {
               </button>
               <span className="fpc-action-btn">
                 <MessageCircle size={16} />
-                <span>{comments.length} bình luận</span>
+                <span>{totalComments} bình luận</span>
               </span>
             </div>
           </article>
 
-          {/* Comments */}
           <section className="forum-comments">
-            <h2 className="comments-title">Bình luận ({comments.length})</h2>
+            <h2 className="comments-title">Thảo luận ({totalComments})</h2>
 
-            {/* Comment form */}
             {isAuthenticated ? (
               <form onSubmit={handleComment} className="comment-form">
                 <div
@@ -182,35 +201,25 @@ const ForumPostPage = () => {
                       disabled={!commentText.trim() || submitting}
                     >
                       {submitting ? <Loader2 size={15} className="spin" /> : <Send size={15} />}
-                      Gửi
+                      Gửi bình luận
                     </button>
                   </div>
                 </div>
               </form>
             ) : (
               <div className="comment-login-prompt">
-                <Link to="/login" className="auth-link">Đăng nhập</Link> để tham gia bình luận
+                <Link to="/login" className="auth-link">Đăng nhập</Link> để tham gia thảo luận
               </div>
             )}
 
-            {/* Comment list */}
             <div className="comment-list">
               {comments.map(comment => (
-                <div key={comment.id} className="comment-item">
-                  <div
-                    className="comment-avatar"
-                    style={{ background: AVATAR_COLORS[(comment.author.id || 0) % AVATAR_COLORS.length] }}
-                  >
-                    {getInitials(comment.author.name)}
-                  </div>
-                  <div className="comment-body">
-                    <div className="comment-header">
-                      <span className="comment-author">{comment.author.name}</span>
-                      <span className="comment-time">{timeAgo(comment.createdAt)}</span>
-                    </div>
-                    <p className="comment-content">{comment.content}</p>
-                  </div>
-                </div>
+                <CommentThread
+                  key={comment.id}
+                  comment={comment}
+                  isAuthenticated={isAuthenticated}
+                  onReply={handleReply}
+                />
               ))}
               {comments.length === 0 && (
                 <div className="comments-empty">Chưa có bình luận. Hãy là người đầu tiên!</div>

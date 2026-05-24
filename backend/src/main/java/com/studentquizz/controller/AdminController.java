@@ -27,6 +27,7 @@ public class AdminController {
     private final QuizRepository quizRepository;
     private final ForumPostRepository forumPostRepository;
     private final ForumCommentRepository forumCommentRepository;
+    private final com.studentquizz.repository.ForumPostLikeRepository forumPostLikeRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
@@ -77,6 +78,36 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Role updated to " + newRole));
     }
 
+    @PutMapping("/users/{id}/lock")
+    public ResponseEntity<Map<String, Object>> updateUserLock(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if ("ADMIN".equals(user.getRole())) {
+            throw new RuntimeException("Không thể khóa tài khoản quản trị.");
+        }
+
+        boolean locked = Boolean.TRUE.equals(body.get("locked"))
+                || "true".equalsIgnoreCase(String.valueOf(body.get("locked")));
+        user.setLocked(locked);
+        if (locked) {
+            String reason = body.get("lockReason") != null ? String.valueOf(body.get("lockReason")).trim() : "";
+            if (reason.isEmpty()) {
+                throw new RuntimeException("Vui lòng nhập lý do khóa tài khoản.");
+            }
+            user.setLockReason(reason);
+        } else {
+            user.setLockReason(null);
+        }
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of(
+                "message", locked ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản",
+                "locked", locked,
+                "lockReason", user.getLockReason() != null ? user.getLockReason() : ""
+        ));
+    }
+
     @DeleteMapping("/users/{id}")
     @Transactional
     public ResponseEntity<Map<String, String>> deleteUser(@PathVariable Long id) {
@@ -84,13 +115,15 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
 
-        // 1. Delete comments written by the user
+        // 1. Delete likes and comments written by the user
+        forumPostLikeRepository.deleteByUserId(id);
         forumCommentRepository.deleteByAuthorId(id);
 
         // 2. Find and delete all posts by the user (and comments on those posts)
         java.util.List<ForumPost> posts = forumPostRepository.findByAuthorIdOrderByCreatedAtDesc(id);
         for (ForumPost post : posts) {
             forumCommentRepository.deleteByPostId(post.getId());
+            forumPostLikeRepository.deleteByPostId(post.getId());
             forumPostRepository.delete(post);
         }
 
@@ -148,6 +181,18 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Quiz deleted"));
     }
 
+    @PutMapping("/quizzes/{id}/featured")
+    public ResponseEntity<Map<String, Object>> toggleFeatured(@PathVariable Long id) {
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Quiz not found"));
+        quiz.setFeatured(!Boolean.TRUE.equals(quiz.getFeatured()));
+        quizRepository.save(quiz);
+        return ResponseEntity.ok(Map.of(
+                "message", quiz.getFeatured() ? "Quiz đã được đưa lên nổi bật" : "Quiz đã bỏ nổi bật",
+                "featured", quiz.getFeatured()
+        ));
+    }
+
     // ─── Forum Management ────────────────────────────────────────────────────
 
     @GetMapping("/forum/posts")
@@ -186,44 +231,66 @@ public class AdminController {
         if (!forumPostRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+        forumCommentRepository.deleteByPostId(id);
+        forumPostLikeRepository.deleteByPostId(id);
         forumPostRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Post deleted"));
     }
 
     @PutMapping("/quizzes/{id}/status")
-    public ResponseEntity<Map<String, String>> updateQuizStatus(
+    public ResponseEntity<Map<String, Object>> updateQuizStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
         String newStatus = body.getOrDefault("status", "PENDING");
-        quiz.setStatus(newStatus);
         if ("REJECTED".equals(newStatus)) {
-            quiz.setRejectReason(body.get("rejectReason"));
+            String reason = body.get("rejectReason");
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new RuntimeException("Vui lòng nhập lý do từ chối.");
+            }
+            quiz.setRejectReason(reason.trim());
+            quiz.setAppealMessage(null);
         } else if ("APPROVED".equals(newStatus)) {
             quiz.setRejectReason(null);
             quiz.setAppealMessage(null);
         }
+        quiz.setStatus(newStatus);
         quizRepository.save(quiz);
-        return ResponseEntity.ok(Map.of("message", "Quiz status updated to " + newStatus));
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã cập nhật trạng thái quiz",
+                "status", quiz.getStatus(),
+                "rejectReason", quiz.getRejectReason() != null ? quiz.getRejectReason() : "",
+                "appealMessage", quiz.getAppealMessage() != null ? quiz.getAppealMessage() : ""
+        ));
     }
 
     @PutMapping("/forum/posts/{id}/status")
-    public ResponseEntity<Map<String, String>> updatePostStatus(
+    public ResponseEntity<Map<String, Object>> updatePostStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         ForumPost post = forumPostRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Post not found"));
         String newStatus = body.getOrDefault("status", "PENDING");
-        post.setStatus(newStatus);
         if ("REJECTED".equals(newStatus)) {
-            post.setRejectReason(body.get("rejectReason"));
+            String reason = body.get("rejectReason");
+            if (reason == null || reason.trim().isEmpty()) {
+                throw new RuntimeException("Vui lòng nhập lý do từ chối.");
+            }
+            post.setRejectReason(reason.trim());
+            post.setAppealMessage(null);
         } else if ("APPROVED".equals(newStatus)) {
             post.setRejectReason(null);
             post.setAppealMessage(null);
         }
+        post.setStatus(newStatus);
         forumPostRepository.save(post);
-        return ResponseEntity.ok(Map.of("message", "Post status updated to " + newStatus));
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã cập nhật trạng thái bài viết",
+                "status", post.getStatus(),
+                "rejectReason", post.getRejectReason() != null ? post.getRejectReason() : "",
+                "appealMessage", post.getAppealMessage() != null ? post.getAppealMessage() : ""
+        ));
     }
 }
 

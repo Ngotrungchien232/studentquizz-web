@@ -1,5 +1,6 @@
 package com.studentquizz.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,6 +22,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
@@ -29,5 +31,12 @@ public class User {
     @Builder.Default
     @Column(nullable = false)
     private String role = "USER"; // USER | ADMIN
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean locked = false;
+
+    @Column(columnDefinition = "TEXT")
+    private String lockReason;
 }
 

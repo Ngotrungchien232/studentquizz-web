@@ -30,13 +30,21 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    const msg = error.response?.data?.message as string | undefined;
+    const isLocked = error.response?.status === 403 && msg?.toLowerCase().includes('khóa');
+
+    if (error.response?.status === 401 || isLocked) {
+      if (isLocked && msg) {
+        sessionStorage.setItem('accountLockMessage', msg);
+      }
       localStorage.removeItem('token');
+      if (!window.location.pathname.startsWith('/admin')) {
+        window.location.href = '/login';
+      }
+    } else if (error.response?.status === 403) {
       localStorage.removeItem('admin_token');
       if (window.location.pathname.startsWith('/admin')) {
         window.location.href = '/admin/login';
-      } else {
-        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

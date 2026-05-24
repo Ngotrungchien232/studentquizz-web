@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { adminService } from '../adminService';
+import RejectModal from '../components/RejectModal';
+import { useDialog } from '../../context/DialogContext';
+import '../components/AdminModals.css';
 
 interface Quiz {
   id: number;
@@ -16,12 +19,14 @@ interface Quiz {
 
 
 const QuizzesPage: React.FC = () => {
+  const { confirm, alert: showAlert } = useDialog();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{ id: number; title: string } | null>(null);
 
   const load = async (p = 0) => {
     setLoading(true);
@@ -39,42 +44,70 @@ const QuizzesPage: React.FC = () => {
   useEffect(() => { load(0); }, []);
 
   const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`Xóa bài kiểm tra "${title}"?`)) return;
+    const ok = await confirm({
+      title: 'Xóa bài kiểm tra',
+      message: `Bạn có chắc muốn xóa "${title}"?\nHành động này không thể hoàn tác.`,
+      confirmText: 'Xóa',
+      variant: 'danger',
+      theme: 'admin',
+    });
+    if (!ok) return;
     setDeleting(id);
     try {
       await adminService.deleteQuiz(id);
       setQuizzes(quizzes.filter(q => q.id !== id));
       setTotalElements(t => t - 1);
     } catch {
-      alert('Lỗi khi xóa quiz!');
+      await showAlert({ title: 'Lỗi', message: 'Không thể xóa bài kiểm tra.', variant: 'danger', theme: 'admin' });
     } finally {
       setDeleting(null);
     }
   };
 
   const handleStatusUpdate = async (id: number, status: string, title: string) => {
-    if (!confirm(`Xác nhận chuyển bài kiểm tra "${title}" sang trạng thái ${status}?`)) return;
+    const ok = await confirm({
+      title: 'Xác nhận duyệt',
+      message: `Duyệt bài kiểm tra "${title}"?`,
+      confirmText: 'Duyệt',
+      variant: 'success',
+      theme: 'admin',
+    });
+    if (!ok) return;
     try {
       await adminService.updateQuizStatus(id, status);
       setQuizzes(quizzes.map(q => q.id === id ? { ...q, status } : q));
     } catch {
-      alert('Lỗi khi cập nhật trạng thái!');
+      await showAlert({ title: 'Lỗi', message: 'Không thể cập nhật trạng thái.', variant: 'danger', theme: 'admin' });
     }
   };
 
-  const handleReject = async (id: number, title: string) => {
-    const reason = window.prompt(`Nhập lý do từ chối bài kiểm tra "${title}":`);
-    if (reason === null) return;
-    if (!reason.trim()) {
-      alert("Bạn phải nhập lý do từ chối.");
-      return;
-    }
+  const handleToggleFeatured = async (id: number, title: string, featured: boolean) => {
+    const action = featured ? 'bỏ nổi bật' : 'đưa lên nổi bật';
+    const ok = await confirm({
+      title: 'Cập nhật nổi bật',
+      message: `Xác nhận ${action} bài "${title}"?`,
+      confirmText: 'Xác nhận',
+      variant: 'primary',
+      theme: 'admin',
+    });
+    if (!ok) return;
     try {
-      await adminService.updateQuizStatus(id, 'REJECTED', reason);
-      setQuizzes(quizzes.map(q => q.id === id ? { ...q, status: 'REJECTED' } : q));
+      const res = await adminService.toggleQuizFeatured(id);
+      setQuizzes(quizzes.map(q => q.id === id ? { ...q, featured: res.featured } : q));
     } catch {
-      alert('Lỗi khi từ chối!');
+      await showAlert({ title: 'Lỗi', message: 'Không thể cập nhật nổi bật.', variant: 'danger', theme: 'admin' });
     }
+  };
+
+  const handleRejectConfirm = async (reason: string) => {
+    if (!rejectTarget) return;
+    const res = await adminService.updateQuizStatus(rejectTarget.id, 'REJECTED', reason);
+    setQuizzes(quizzes.map(q => q.id === rejectTarget.id ? {
+      ...q,
+      status: 'REJECTED',
+      rejectReason: res.rejectReason || reason,
+      appealMessage: undefined,
+    } : q));
   };
 
   const categoryColors: Record<string, string> = {
@@ -91,6 +124,14 @@ const QuizzesPage: React.FC = () => {
 
   return (
     <div>
+      {rejectTarget && (
+        <RejectModal
+          title="Từ chối bài kiểm tra"
+          itemLabel={rejectTarget.title}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={handleRejectConfirm}
+        />
+      )}
       <div className="admin-card">
         <div className="admin-card-header">
           <h2 className="admin-card-title">
@@ -121,6 +162,7 @@ const QuizzesPage: React.FC = () => {
                     <th>Trạng thái</th>
                     <th>Số câu</th>
                     <th>Lượt chơi</th>
+                    <th>Nổi bật</th>
                     <th>Tác giả</th>
                     <th>Thao tác</th>
                   </tr>
@@ -168,6 +210,22 @@ const QuizzesPage: React.FC = () => {
                           {quiz.playCount.toLocaleString('vi-VN')}
                         </span>
                       </td>
+                      <td>
+                        {quiz.status === 'APPROVED' ? (
+                          <button
+                            className="admin-btn"
+                            style={{
+                              background: quiz.featured ? 'rgba(124, 58, 237, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+                              color: quiz.featured ? '#a78bfa' : '#94a3b8',
+                            }}
+                            onClick={() => handleToggleFeatured(quiz.id, quiz.title, quiz.featured)}
+                          >
+                            {quiz.featured ? '⭐ Nổi bật' : '☆ Đánh dấu'}
+                          </button>
+                        ) : (
+                          <span style={{ color: '#64748b', fontSize: '0.8rem' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
                         {quiz.author?.name || '—'}
                       </td>
@@ -185,7 +243,7 @@ const QuizzesPage: React.FC = () => {
                                 <button
                                   className="admin-btn"
                                   style={{ background: '#ef4444', color: 'white' }}
-                                  onClick={() => handleReject(quiz.id, quiz.title)}
+                                  onClick={() => setRejectTarget({ id: quiz.id, title: quiz.title })}
                                 >
                                   Từ chối
                                 </button>
@@ -199,9 +257,14 @@ const QuizzesPage: React.FC = () => {
                               {deleting === quiz.id ? '⏳' : '🗑️'} Xóa
                             </button>
                           </div>
+                          {quiz.rejectReason && quiz.status === 'REJECTED' && (
+                            <div className="admin-moderation-note admin-moderation-note--reject">
+                              <strong>Lý do từ chối:</strong> {quiz.rejectReason}
+                            </div>
+                          )}
                           {quiz.appealMessage && quiz.status === 'PENDING' && (
-                            <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#b91c1c', background: '#fee2e2', padding: '4px 8px', borderRadius: '4px' }}>
-                              <strong>🚨 Khiếu nại:</strong> {quiz.appealMessage}
+                            <div className="admin-moderation-note admin-moderation-note--appeal">
+                              <strong>🚨 Khiếu nại từ user:</strong> {quiz.appealMessage}
                             </div>
                           )}
                       </td>

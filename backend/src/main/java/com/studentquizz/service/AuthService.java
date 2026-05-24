@@ -26,6 +26,14 @@ public class AuthService {
             throw new RuntimeException("Invalid email or password");
         }
 
+        if (Boolean.TRUE.equals(user.getLocked())) {
+            String reason = user.getLockReason();
+            if (reason != null && !reason.isBlank()) {
+                throw new RuntimeException("Tài khoản đã bị khóa. Lý do: " + reason);
+            }
+            throw new RuntimeException("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+        }
+
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         return buildAuthResponse(token, user);
     }

@@ -10,6 +10,8 @@ import java.util.List;
 import org.springframework.data.repository.query.Param;
 
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
+    boolean existsByTitle(String title);
+
     List<Quiz> findByFeaturedTrueAndStatusOrderByPlayCountDesc(String status);
     
     Page<Quiz> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);

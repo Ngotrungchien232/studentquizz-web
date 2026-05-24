@@ -16,6 +16,7 @@ const QuizPlayPage = () => {
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
+  const [playRecorded, setPlayRecorded] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -26,6 +27,13 @@ const QuizPlayPage = () => {
       setLoading(false);
     });
   }, [id]);
+
+  useEffect(() => {
+    if (!isFinished || playRecorded || !id) return;
+    quizService.recordPlay(Number(id))
+      .then(() => setPlayRecorded(true))
+      .catch(() => setPlayRecorded(true));
+  }, [isFinished, playRecorded, id]);
 
   if (loading) {
     return (
@@ -39,7 +47,11 @@ const QuizPlayPage = () => {
   if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
       <div className="quiz-play-page error-state">
-        <h2>Không tìm thấy bài Quiz hoặc bài Quiz chưa có câu hỏi</h2>
+        <h2>
+          {!quiz
+            ? 'Không tìm thấy bài Quiz hoặc bài Quiz chưa được duyệt'
+            : 'Bài Quiz chưa có câu hỏi'}
+        </h2>
         <Link to="/explore" className="btn btn-primary">Quay lại Khám phá</Link>
       </div>
     );
