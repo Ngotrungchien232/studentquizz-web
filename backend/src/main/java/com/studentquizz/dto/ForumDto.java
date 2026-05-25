@@ -20,6 +20,10 @@ public class ForumDto {
         private String status;
         private String rejectReason;
         private String appealMessage;
+        private String attachmentUrl;
+        private String attachmentName;
+        private String attachmentType;
+        private String linkUrl;
     }
 
 
@@ -40,6 +44,10 @@ public class ForumDto {
         private String title;
         private String content;
         private List<String> tags;
+        private String attachmentUrl;
+        private String attachmentName;
+        private String attachmentType;
+        private String linkUrl;
     }
 
     @Data

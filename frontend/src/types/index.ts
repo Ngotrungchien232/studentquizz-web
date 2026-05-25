@@ -38,9 +38,13 @@ export interface ForumPost {
   createdAt: string;
   status?: string;
   rejectReason?: string;
-  appealMessage?: string;
   liked?: boolean;
   tags?: string[];
+  appealMessage?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  attachmentType?: string;
+  linkUrl?: string;
 }
 
 

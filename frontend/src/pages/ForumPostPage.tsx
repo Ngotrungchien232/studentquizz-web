@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ThumbsUp, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, ThumbsUp, MessageCircle, Send, Loader2, ExternalLink, Download, FileText } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -153,6 +153,51 @@ const ForumPostPage = () => {
 
             <h1 className="fpa-title">{post.title}</h1>
             <div className="fpa-content">{post.content}</div>
+
+            {/* External Link Section */}
+            {post.linkUrl && (
+              <div className="fpa-link-section">
+                <a href={post.linkUrl} target="_blank" rel="noopener noreferrer" className="fpa-link-card">
+                  <div className="link-card-icon">
+                    <ExternalLink size={16} />
+                  </div>
+                  <div className="link-card-body">
+                    <span className="link-card-title">Liên kết đính kèm</span>
+                    <span className="link-card-url" title={post.linkUrl}>{post.linkUrl}</span>
+                  </div>
+                </a>
+              </div>
+            )}
+
+            {/* File Attachment Section */}
+            {post.attachmentUrl && (
+              <div className="fpa-attachment-section">
+                {post.attachmentType?.startsWith('image/') ? (
+                  <div className="fpa-image-wrapper">
+                    <img
+                      src={post.attachmentUrl}
+                      alt={post.attachmentName || 'Đính kèm'}
+                      className="fpa-image-preview"
+                      onClick={() => window.open(post.attachmentUrl, '_blank')}
+                    />
+                    <span className="image-caption">{post.attachmentName}</span>
+                  </div>
+                ) : (
+                  <a href={post.attachmentUrl} download={post.attachmentName} target="_blank" rel="noopener noreferrer" className="fpa-file-card">
+                    <div className="file-card-icon">
+                      <FileText size={18} />
+                    </div>
+                    <div className="file-card-body">
+                      <span className="file-card-name" title={post.attachmentName}>{post.attachmentName}</span>
+                      <span className="file-card-action">Bấm để xem hoặc tải tài liệu về máy</span>
+                    </div>
+                    <div className="file-card-download-btn">
+                      <Download size={16} />
+                    </div>
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="fpa-actions">
               <button

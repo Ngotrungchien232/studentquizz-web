@@ -336,3 +336,36 @@
   .forum-title { font-size: 1.6rem; }
   .forum-controls { flex-direction: column; }
 }
+
+/* ─── Attachment indicators ─── */
+.fpc-attachments-indicator {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.fpc-attachment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.fpc-link-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #059669;
+  background: #ECFDF5;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+

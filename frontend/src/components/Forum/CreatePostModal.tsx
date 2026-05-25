@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, Tag } from 'lucide-react';
+import { X, Loader2, Tag, Link2, Paperclip, Image, FileText, Trash2, Upload } from 'lucide-react';
 import { forumService } from '../../services/quizService';
 import type { ForumPost } from '../../types';
 import './CreatePostModal.css';
@@ -17,11 +17,39 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [attachment, setAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag].slice(0, 3)
     );
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError('Tệp quá lớn. Vui lòng chọn tệp nhỏ hơn 20MB.');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      const res = await forumService.uploadAttachment(file);
+      setAttachment(res);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Không thể tải tệp lên. Vui lòng kiểm tra định dạng.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachment(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +60,15 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
     }
     setLoading(true);
     try {
-      const newPost = await forumService.createPost(title.trim(), content.trim(), selectedTags);
+      const newPost = await forumService.createPost(
+        title.trim(),
+        content.trim(),
+        selectedTags,
+        attachment?.url,
+        attachment?.name,
+        attachment?.type,
+        linkUrl.trim() || undefined
+      );
       onCreated(newPost);
     } catch {
       setError('Đã có lỗi xảy ra, vui lòng thử lại.');
@@ -103,13 +139,73 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
             </div>
           </div>
 
+          {/* External Link Attachment */}
+          <div className="form-group">
+            <label className="form-label">
+              <Link2 size={14} /> Gắn liên kết ngoài (Tùy chọn)
+            </label>
+            <input
+              type="url"
+              className="form-input"
+              placeholder="Ví dụ: https://example.com/tai-lieu..."
+              value={linkUrl}
+              onChange={e => setLinkUrl(e.target.value)}
+            />
+          </div>
+
+          {/* File Attachment */}
+          <div className="form-group">
+            <label className="form-label">
+              <Paperclip size={14} /> Đính kèm tệp tin (Ảnh, PDF, Docx) (Tùy chọn)
+            </label>
+
+            {attachment ? (
+              <div className="modal-attachment-preview">
+                <div className="attachment-info">
+                  {attachment.type.startsWith('image/') ? (
+                    <Image size={18} className="attachment-icon-preview text-primary" />
+                  ) : (
+                    <FileText size={18} className="attachment-icon-preview text-primary" />
+                  )}
+                  <span className="attachment-name" title={attachment.name}>{attachment.name}</span>
+                </div>
+                <button type="button" className="btn-remove-attachment" onClick={handleRemoveAttachment} aria-label="Xóa đính kèm">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ) : (
+              <div className="modal-file-upload">
+                <label className="file-upload-label">
+                  {uploading ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      <span>Đang tải tệp lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} />
+                      <span>Chọn Ảnh, PDF, hoặc Docx (nhỏ hơn 20MB)</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Hủy</button>
             <button
               id="submit-post-btn"
               type="submit"
               className="btn btn-primary"
-              disabled={loading || !title || !content}
+              disabled={loading || uploading || !title || !content}
             >
               {loading && <Loader2 size={16} className="spin" />}
               {loading ? 'Đang đăng...' : 'Đăng bài'}

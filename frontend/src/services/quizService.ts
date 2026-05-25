@@ -83,8 +83,33 @@ export const forumService = {
     return data;
   },
 
-  createPost: async (title: string, content: string, tags: string[]): Promise<ForumPost> => {
-    const { data } = await api.post('/forum/posts', { title, content, tags });
+  createPost: async (
+    title: string,
+    content: string,
+    tags: string[],
+    attachmentUrl?: string,
+    attachmentName?: string,
+    attachmentType?: string,
+    linkUrl?: string
+  ): Promise<ForumPost> => {
+    const { data } = await api.post('/forum/posts', {
+      title,
+      content,
+      tags,
+      attachmentUrl,
+      attachmentName,
+      attachmentType,
+      linkUrl
+    });
+    return data;
+  },
+
+  uploadAttachment: async (file: File): Promise<{ url: string; name: string; type: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/forum/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return data;
   },
 

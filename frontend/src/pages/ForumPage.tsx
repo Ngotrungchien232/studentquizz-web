@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, ThumbsUp, MessageCircle, Search, TrendingUp, Clock, Tag } from 'lucide-react';
+import { Plus, ThumbsUp, MessageCircle, Search, TrendingUp, Clock, Tag, Paperclip, Link2 } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
@@ -200,6 +200,22 @@ const ForumPage = () => {
                         {post.tags.map(tag => (
                           <span key={tag} className="fpc-tag"># {tag}</span>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Attachments / Link indicators */}
+                    {(post.attachmentName || post.linkUrl) && (
+                      <div className="fpc-attachments-indicator">
+                        {post.attachmentName && (
+                          <span className="fpc-attachment-badge">
+                            <Paperclip size={12} /> {post.attachmentName}
+                          </span>
+                        )}
+                        {post.linkUrl && (
+                          <span className="fpc-link-badge">
+                            <Link2 size={12} /> {post.linkUrl.replace(/https?:\/\/(www\.)?/, '').slice(0, 30)}...
+                          </span>
+                        )}
                       </div>
                     )}
 

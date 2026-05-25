@@ -60,6 +60,10 @@ public class ForumService {
                 .tags(tags)
                 .author(author)
                 .status(initialStatus)
+                .attachmentUrl(req.getAttachmentUrl())
+                .attachmentName(req.getAttachmentName())
+                .attachmentType(req.getAttachmentType())
+                .linkUrl(req.getLinkUrl())
                 .build();
         return toPostDto(postRepository.save(post));
     }
@@ -239,6 +243,10 @@ public class ForumService {
                 .status(post.getStatus())
                 .rejectReason(post.getRejectReason())
                 .appealMessage(post.getAppealMessage())
+                .attachmentUrl(post.getAttachmentUrl())
+                .attachmentName(post.getAttachmentName())
+                .attachmentType(post.getAttachmentType())
+                .linkUrl(post.getLinkUrl())
                 .build();
     }
 

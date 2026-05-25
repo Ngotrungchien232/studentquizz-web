@@ -50,5 +50,17 @@ public class ForumPost {
 
     @Column(columnDefinition = "TEXT")
     private String appealMessage;
+
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
+    @Column(name = "attachment_name")
+    private String attachmentName;
+
+    @Column(name = "attachment_type")
+    private String attachmentType;
+
+    @Column(name = "link_url")
+    private String linkUrl;
 }
 
