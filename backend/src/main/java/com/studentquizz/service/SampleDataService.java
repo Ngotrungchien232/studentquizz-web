@@ -30,9 +30,23 @@ public class SampleDataService {
     private final QuizRepository quizRepository;
     private final ForumPostRepository forumPostRepository;
     private final PasswordEncoder passwordEncoder;
+    private final jakarta.persistence.EntityManager entityManager;
 
     @Transactional
     public Map<String, Object> seedSamplesIfMissing() {
+        // Đảm bảo các cột mới tồn tại trong database (đặc biệt hữu ích khi ddl-auto=update bị nghẽn/lỗi trên Neon)
+        try {
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS attachment_url VARCHAR(255)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(255)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS attachment_type VARCHAR(255)").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS link_url VARCHAR(255)").executeUpdate();
+            
+            entityManager.createNativeQuery("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked BOOLEAN DEFAULT FALSE").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_reason TEXT").executeUpdate();
+        } catch (Exception e) {
+            // Bỏ qua lỗi
+        }
+
         User admin = ensureAdmin();
         User demo = ensureDemoUser();
         User author = demo != null ? demo : admin;
