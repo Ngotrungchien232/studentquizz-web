@@ -101,7 +101,7 @@ public class QuizService {
             }
         }
 
-        // Lưu Quiz
+        // Lưu Quiz và các câu hỏi trong 1 giao dịch duy nhất
         Quiz quiz = Quiz.builder()
                 .title(req.getTitle())
                 .category(req.getCategory())
@@ -111,8 +111,6 @@ public class QuizService {
                 .featured(false)
                 .status(initialStatus)
                 .build();
-
-        quiz = quizRepository.save(quiz);
 
         Quiz finalQuiz = quiz;
         List<Question> questions = questionsList.stream().map(dto -> Question.builder()

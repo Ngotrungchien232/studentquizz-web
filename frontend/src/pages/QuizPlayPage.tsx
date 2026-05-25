@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Trophy, RotateCcw, Send, Play, HelpCircle, UserCheck, Loader2 } from 'lucide-react';
+import { 
+  ArrowLeft, CheckCircle2, XCircle, Trophy, RotateCcw, Send, Play, HelpCircle, 
+  UserCheck, Loader2, Clock, BookOpen, ChevronLeft, ChevronRight 
+} from 'lucide-react';
 import { quizService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import CommentThread from '../components/Forum/CommentThread';
@@ -26,6 +29,14 @@ const QuizPlayPage = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [playRecorded, setPlayRecorded] = useState(false);
 
+  // New features: Practice vs Exam mode
+  const [playMode, setPlayMode] = useState<'practice' | 'exam'>('practice');
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [examAnswers, setExamAnswers] = useState<(number | null)[]>([]);
+
+  // Safely extract questions list at component level
+  const questions: Question[] = quiz?.questions || [];
+
   useEffect(() => {
     if (!id) return;
     quizService.getById(Number(id)).then(data => {
@@ -39,6 +50,19 @@ const QuizPlayPage = () => {
       .then(setComments)
       .catch(console.error);
   }, [id]);
+
+  // Timer effect for exam mode
+  useEffect(() => {
+    if (!hasStarted || playMode !== 'exam' || isFinished) return;
+    if (timeLeft <= 0) {
+      handleSubmitExam();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [hasStarted, playMode, timeLeft, isFinished, examAnswers, quiz]);
 
   const handleAddComment = async (e: React.FormEvent, parentId?: number) => {
     e.preventDefault();
@@ -66,16 +90,113 @@ const QuizPlayPage = () => {
       .catch(() => setPlayRecorded(true));
   }, [isFinished, playRecorded, id]);
 
+  const handleStartQuiz = () => {
+    if (!quiz) return;
+    setHasStarted(true);
+    setCurrentQIndex(0);
+    setScore(0);
+    setIsFinished(false);
+    setSelectedAnswer(null);
+    setIsAnswered(false);
+    setPlayRecorded(false);
+
+    if (playMode === 'exam') {
+      setTimeLeft(questions.length * 60); // 1 minute per question
+      setExamAnswers(new Array(questions.length).fill(null));
+    }
+  };
+
+  const handleSelectOption = (index: number) => {
+    if (playMode === 'practice') {
+      if (isAnswered) return;
+      setSelectedAnswer(index);
+    } else {
+      // Exam mode
+      setExamAnswers(prev => {
+        const copy = [...prev];
+        copy[currentQIndex] = index;
+        return copy;
+      });
+    }
+  };
+
+  const handleSubmitAnswerPractice = () => {
+    if (selectedAnswer === null) return;
+    setIsAnswered(true);
+    if (selectedAnswer === questions[currentQIndex].correctAnswer) {
+      setScore(prev => prev + 1);
+    }
+  };
+
+  const handleNextPractice = () => {
+    if (currentQIndex < questions.length - 1) {
+      setCurrentQIndex(prev => prev + 1);
+      setSelectedAnswer(null);
+      setIsAnswered(false);
+    } else {
+      setIsFinished(true);
+    }
+  };
+
+  const handlePrevExam = () => {
+    if (currentQIndex > 0) {
+      setCurrentQIndex(prev => prev - 1);
+    }
+  };
+
+  const handleNextExam = () => {
+    if (currentQIndex < questions.length - 1) {
+      setCurrentQIndex(prev => prev + 1);
+    }
+  };
+
+  const handleSubmitExam = () => {
+    let finalScore = 0;
+    questions.forEach((q, idx) => {
+      if (examAnswers[idx] === q.correctAnswer) {
+        finalScore++;
+      }
+    });
+    setScore(finalScore);
+    setIsFinished(true);
+  };
+
+  const handleConfirmSubmitExam = () => {
+    if (window.confirm("Bạn có chắc chắn muốn nộp bài thi?")) {
+      handleSubmitExam();
+    }
+  };
+
+  const handleExit = () => {
+    if (hasStarted && !isFinished && playMode === 'exam') {
+      if (window.confirm("Bạn đang làm bài kiểm tra trong phòng thi. Nếu thoát bây giờ, kết quả của bạn sẽ không được lưu. Bạn có chắc chắn muốn thoát?")) {
+        navigate(-1);
+      }
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleRetry = () => {
+    handleStartQuiz();
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (loading) {
     return (
       <div className="quiz-play-page loading-state">
-        <div className="spinner" />
+        <Loader2 className="spinner spin" size={40} color="var(--primary)" />
         <p>Đang tải câu hỏi...</p>
       </div>
     );
   }
 
-  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+  if (!quiz || questions.length === 0) {
     return (
       <div className="quiz-play-page error-state">
         <h2>
@@ -118,7 +239,7 @@ const QuizPlayPage = () => {
                 <div className="stat-item">
                   <HelpCircle size={18} className="stat-icon" />
                   <div>
-                    <span className="stat-value">{quiz.questions.length}</span>
+                    <span className="stat-value">{questions.length}</span>
                     <span className="stat-label">câu hỏi</span>
                   </div>
                 </div>
@@ -140,7 +261,37 @@ const QuizPlayPage = () => {
                 )}
               </div>
 
-              <button className="btn btn-primary btn-start-play-quiz" onClick={() => setHasStarted(true)}>
+              {/* Mode Selector */}
+              <div className="mode-selector-section">
+                <h3 className="mode-selector-title">Chọn chế độ làm bài:</h3>
+                <div className="mode-selector-grid">
+                  <button
+                    type="button"
+                    className={`mode-card ${playMode === 'practice' ? 'active' : ''}`}
+                    onClick={() => setPlayMode('practice')}
+                  >
+                    <span className="mode-card-icon"><BookOpen size={24} color="var(--primary)" /></span>
+                    <span className="mode-card-info">
+                      <span className="mode-card-name">Chế độ Ôn tập</span>
+                      <span className="mode-card-desc">Không giới hạn thời gian. Xem ngay đáp án đúng và giải thích chi tiết sau mỗi câu hỏi.</span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`mode-card ${playMode === 'exam' ? 'active' : ''}`}
+                    onClick={() => setPlayMode('exam')}
+                  >
+                    <span className="mode-card-icon"><Clock size={24} color="#EF4444" /></span>
+                    <span className="mode-card-info">
+                      <span className="mode-card-name">Chế độ Phòng thi</span>
+                      <span className="mode-card-desc">Thời gian giới hạn (1 phút/câu). Di chuyển tự do giữa các câu và chỉ biết kết quả sau khi nộp bài.</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <button className="btn btn-primary btn-start-play-quiz" onClick={handleStartQuiz}>
                 <Play size={18} fill="currentColor" /> Bắt đầu làm bài
               </button>
             </div>
@@ -207,50 +358,17 @@ const QuizPlayPage = () => {
     );
   }
 
-  const questions: Question[] = quiz.questions;
   const currentQuestion = questions[currentQIndex];
-
-  const handleSelectOption = (index: number) => {
-    if (isAnswered) return;
-    setSelectedAnswer(index);
-  };
-
-  const handleSubmitAnswer = () => {
-    if (selectedAnswer === null) return;
-    
-    setIsAnswered(true);
-    if (selectedAnswer === currentQuestion.correctAnswer) {
-      setScore(prev => prev + 1);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentQIndex < questions.length - 1) {
-      setCurrentQIndex(prev => prev + 1);
-      setSelectedAnswer(null);
-      setIsAnswered(false);
-    } else {
-      setIsFinished(true);
-    }
-  };
-
-  const handleRetry = () => {
-    setCurrentQIndex(0);
-    setSelectedAnswer(null);
-    setIsAnswered(false);
-    setScore(0);
-    setIsFinished(false);
-  };
 
   if (isFinished) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
       <div className="quiz-play-page">
-        <div className="container quiz-result-container">
-          <div className="card quiz-result-card">
+        <div className="container quiz-result-container" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+          <div className="card quiz-result-card" style={{ margin: '0 auto' }}>
             <Trophy size={64} className="result-icon" />
             <h1 className="result-title">Hoàn thành!</h1>
-            <p className="result-subtitle">Bạn đã hoàn thành bài quiz <strong>{quiz.title}</strong></p>
+            <p className="result-subtitle">Bạn đã hoàn thành bài quiz <strong>{quiz.title}</strong> ở chế độ <strong>{playMode === 'exam' ? 'Phòng thi' : 'Ôn tập'}</strong></p>
             
             <div className="result-score-box">
               <span className="result-score">{score} / {questions.length}</span>
@@ -266,6 +384,58 @@ const QuizPlayPage = () => {
               </button>
             </div>
           </div>
+
+          {/* Exam detailed review section */}
+          {playMode === 'exam' && (
+            <div className="exam-review-section">
+              <h2 className="review-title">Xem lại chi tiết bài làm</h2>
+              <div className="review-list">
+                {questions.map((q, idx) => {
+                  const userAnswer = examAnswers[idx];
+                  const isCorrect = userAnswer === q.correctAnswer;
+                  
+                  return (
+                    <div key={idx} className={`review-card card ${isCorrect ? 'review-correct' : userAnswer === null ? 'review-unanswered' : 'review-incorrect'}`}>
+                      <div className="review-card-header">
+                        <h3>Câu {idx + 1}</h3>
+                        <span className={`review-status-badge ${isCorrect ? 'badge-correct' : userAnswer === null ? 'badge-unanswered' : 'badge-incorrect'}`}>
+                          {isCorrect ? '✓ Đúng' : userAnswer === null ? '⚠ Chưa trả lời' : '✗ Sai'}
+                        </span>
+                      </div>
+                      
+                      <p className="review-question-text">{q.content}</p>
+                      
+                      <div className="review-options-list">
+                        {q.options.map((opt, optIdx) => {
+                          let optClass = "review-option-item";
+                          const isSelected = userAnswer === optIdx;
+                          const isCorrectOpt = q.correctAnswer === optIdx;
+                          
+                          if (isCorrectOpt) optClass += " correct-opt";
+                          else if (isSelected) optClass += " incorrect-opt";
+                          
+                          return (
+                            <div key={optIdx} className={optClass}>
+                              <span className="option-label">{String.fromCharCode(65 + optIdx)}</span>
+                              <span className="option-text">{opt}</span>
+                              {isCorrectOpt && <CheckCircle2 size={16} className="opt-status-icon" color="#10B981" />}
+                              {isSelected && !isCorrectOpt && <XCircle size={16} className="opt-status-icon" color="#EF4444" />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {q.explanation && (
+                        <div className="review-explanation-box">
+                          <strong>Giải thích:</strong> {q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -276,11 +446,20 @@ const QuizPlayPage = () => {
       <div className="container quiz-play-container">
         {/* Header */}
         <div className="quiz-play-header">
-          <button className="back-btn" onClick={() => navigate(-1)}>
+          <button className="back-btn" onClick={handleExit}>
             <ArrowLeft size={18} /> Thoát
           </button>
+          
+          {/* Show timer if in exam mode */}
+          {playMode === 'exam' && (
+            <div className={`exam-timer-banner ${timeLeft < 60 ? 'warning' : ''}`}>
+              <Clock size={16} />
+              <span>Thời gian: {formatTime(timeLeft)}</span>
+            </div>
+          )}
+
           <div className="quiz-progress-text">
-            Câu {currentQIndex + 1} / {questions.length}
+            {playMode === 'exam' ? 'Chế độ Phòng thi' : 'Chế độ Ôn tập'} • Câu {currentQIndex + 1} / {questions.length}
           </div>
         </div>
 
@@ -292,6 +471,21 @@ const QuizPlayPage = () => {
           />
         </div>
 
+        {/* Question Panel Grid in Exam Mode */}
+        {playMode === 'exam' && (
+          <div className="exam-question-grid">
+            {questions.map((_, idx) => (
+              <button
+                key={idx}
+                className={`grid-item-btn ${currentQIndex === idx ? 'active' : ''} ${examAnswers[idx] !== null ? 'answered' : ''}`}
+                onClick={() => setCurrentQIndex(idx)}
+              >
+                {idx + 1}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Question Area */}
         <div className="quiz-question-area card">
           <h2 className="question-text">{currentQuestion.content}</h2>
@@ -299,12 +493,23 @@ const QuizPlayPage = () => {
           <div className="options-grid">
             {currentQuestion.options.map((opt, index) => {
               let btnClass = "option-btn";
-              if (isAnswered) {
-                if (index === currentQuestion.correctAnswer) btnClass += " correct";
-                else if (index === selectedAnswer) btnClass += " incorrect";
-                else btnClass += " disabled";
-              } else if (selectedAnswer === index) {
-                btnClass += " selected";
+              const isSelected = playMode === 'practice' 
+                ? selectedAnswer === index 
+                : examAnswers[currentQIndex] === index;
+
+              if (playMode === 'practice') {
+                if (isAnswered) {
+                  if (index === currentQuestion.correctAnswer) btnClass += " correct";
+                  else if (index === selectedAnswer) btnClass += " incorrect";
+                  else btnClass += " disabled";
+                } else if (isSelected) {
+                  btnClass += " selected";
+                }
+              } else {
+                // Exam Mode
+                if (isSelected) {
+                  btnClass += " selected";
+                }
               }
 
               return (
@@ -312,41 +517,76 @@ const QuizPlayPage = () => {
                   key={index}
                   className={btnClass}
                   onClick={() => handleSelectOption(index)}
-                  disabled={isAnswered}
+                  disabled={playMode === 'practice' && isAnswered}
                 >
                   <span className="option-label">{String.fromCharCode(65 + index)}</span>
                   <span className="option-text">{opt}</span>
-                  {isAnswered && index === currentQuestion.correctAnswer && <CheckCircle2 className="option-icon" size={18} />}
-                  {isAnswered && index === selectedAnswer && index !== currentQuestion.correctAnswer && <XCircle className="option-icon" size={18} />}
+                  {playMode === 'practice' && isAnswered && index === currentQuestion.correctAnswer && <CheckCircle2 className="option-icon" size={18} />}
+                  {playMode === 'practice' && isAnswered && index === selectedAnswer && index !== currentQuestion.correctAnswer && <XCircle className="option-icon" size={18} />}
                 </button>
               );
             })}
           </div>
 
-          {/* Explanation Area */}
-          {isAnswered && currentQuestion.explanation && (
+          {/* Explanation Area (Practice mode only) */}
+          {playMode === 'practice' && isAnswered && currentQuestion.explanation && (
             <div className={`explanation-box ${selectedAnswer === currentQuestion.correctAnswer ? 'correct-bg' : 'incorrect-bg'}`}>
               <strong>Giải thích:</strong> {currentQuestion.explanation}
             </div>
           )}
 
           {/* Actions */}
-          <div className="quiz-actions">
-            {!isAnswered ? (
-              <button 
-                className="btn btn-primary submit-ans-btn" 
-                onClick={handleSubmitAnswer}
-                disabled={selectedAnswer === null}
-              >
-                Kiểm tra đáp án
-              </button>
+          <div className="quiz-actions" style={{ width: '100%' }}>
+            {playMode === 'practice' ? (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                {!isAnswered ? (
+                  <button 
+                    className="btn btn-primary submit-ans-btn" 
+                    onClick={handleSubmitAnswerPractice}
+                    disabled={selectedAnswer === null}
+                  >
+                    Kiểm tra đáp án
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-primary next-ans-btn" 
+                    onClick={handleNextPractice}
+                  >
+                    {currentQIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Xem kết quả'}
+                  </button>
+                )}
+              </div>
             ) : (
-              <button 
-                className="btn btn-primary next-ans-btn" 
-                onClick={handleNext}
-              >
-                {currentQIndex < questions.length - 1 ? 'Câu tiếp theo' : 'Xem kết quả'}
-              </button>
+              // Exam Mode Actions
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                <button 
+                  className="btn btn-outline" 
+                  onClick={handlePrevExam}
+                  disabled={currentQIndex === 0}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <ChevronLeft size={16} /> Câu trước
+                </button>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {currentQIndex < questions.length - 1 ? (
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleNextExam}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      Câu tiếp theo <ChevronRight size={16} />
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={handleConfirmSubmitExam}
+                    >
+                      Nộp bài thi
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

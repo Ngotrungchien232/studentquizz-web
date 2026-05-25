@@ -426,4 +426,273 @@
   .quiz-comments-section {
     padding: 20px;
   }
+  .mode-selector-grid {
+    grid-template-columns: 1fr;
+  }
 }
+
+/* Chế độ chơi và Phòng thi */
+.mode-selector-section {
+  width: 100%;
+  margin: 16px 0 24px;
+  text-align: left;
+}
+
+.mode-selector-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.mode-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.mode-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 2px solid var(--card-border);
+  border-radius: var(--border-radius-lg);
+  background: white;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.mode-card:hover {
+  border-color: var(--primary-mid);
+  background: var(--bg-soft);
+}
+
+.mode-card.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.mode-card-icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.mode-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mode-card-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mode-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Exam Timer Styles */
+.exam-timer-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-md);
+  background: #FEE2E2;
+  border: 1px solid #FCA5A5;
+  color: #DC2626;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.exam-timer-banner.warning {
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  from { opacity: 1; }
+  to { opacity: 0.5; }
+}
+
+/* Exam Question Grid Styles */
+.exam-question-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.grid-item-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: white;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.grid-item-btn:hover {
+  border-color: var(--primary-mid);
+  color: var(--primary);
+}
+
+.grid-item-btn.answered {
+  background: var(--primary-light);
+  border-color: var(--primary-mid);
+  color: var(--primary);
+}
+
+.grid-item-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* Detailed Review Styles */
+.exam-review-section {
+  width: 100%;
+  margin-top: 40px;
+  text-align: left;
+}
+
+.review-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.review-card {
+  padding: 24px;
+  border-radius: var(--border-radius-lg);
+  border-left: 6px solid;
+  transition: var(--transition);
+  background: white;
+  border-top: 1px solid var(--card-border);
+  border-right: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.review-correct {
+  border-left-color: #10B981;
+}
+
+.review-incorrect {
+  border-left-color: #EF4444;
+}
+
+.review-unanswered {
+  border-left-color: #F59E0B;
+}
+
+.review-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.review-card-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.review-status-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.badge-correct {
+  background: #D1FAE5;
+  color: #10B981;
+}
+
+.badge-incorrect {
+  background: #FEE2E2;
+  color: #EF4444;
+}
+
+.badge-unanswered {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+}
+
+.review-question-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+.review-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.review-option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--text-primary);
+}
+
+.review-option-item.correct-opt {
+  border-color: #10B981;
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.review-option-item.incorrect-opt {
+  border-color: #EF4444;
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.opt-status-icon {
+  margin-left: auto;
+}
+
+.review-explanation-box {
+  padding: 12px 16px;
+  background: var(--bg-soft);
+  border-radius: 8px;
+  border-top: 1px solid var(--card-border);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
