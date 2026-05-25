@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CornerDownRight, Loader2, Send } from 'lucide-react';
-import type { ForumComment } from '../../types';
+import type { ForumComment, QuizComment } from '../../types';
 import './CommentThread.css';
 
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
@@ -19,7 +19,7 @@ const getInitials = (name: string) =>
   name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
 interface Props {
-  comment: ForumComment;
+  comment: ForumComment | QuizComment;
   depth?: number;
   isAuthenticated: boolean;
   onReply: (parentId: number, content: string) => Promise<void>;

@@ -5,6 +5,7 @@ import com.studentquizz.model.Quiz;
 import com.studentquizz.model.User;
 import com.studentquizz.repository.ForumCommentRepository;
 import com.studentquizz.repository.ForumPostRepository;
+import com.studentquizz.repository.QuizCommentRepository;
 import com.studentquizz.repository.QuizRepository;
 import com.studentquizz.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class AdminController {
     private final ForumPostRepository forumPostRepository;
     private final ForumCommentRepository forumCommentRepository;
     private final com.studentquizz.repository.ForumPostLikeRepository forumPostLikeRepository;
+    private final QuizCommentRepository quizCommentRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
@@ -121,6 +123,7 @@ public class AdminController {
         // 1. Delete likes and comments written by the user
         forumPostLikeRepository.deleteByUserId(id);
         forumCommentRepository.deleteByAuthorId(id);
+        quizCommentRepository.deleteByAuthorId(id);
 
         // 2. Find and delete all posts by the user (and comments on those posts)
         java.util.List<ForumPost> posts = forumPostRepository.findByAuthorIdOrderByCreatedAtDesc(id);

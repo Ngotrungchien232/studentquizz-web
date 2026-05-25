@@ -77,4 +77,16 @@ public class QuizController {
         String message = body.getOrDefault("appealMessage", "Tôi muốn khiếu nại.");
         return ResponseEntity.ok(quizService.appeal(id, message));
     }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<List<com.studentquizz.dto.ForumDto.CommentResponse>> getComments(@PathVariable Long id) {
+        return ResponseEntity.ok(quizService.getComments(id));
+    }
+
+    @PostMapping("/{id}/comments")
+    public ResponseEntity<com.studentquizz.dto.ForumDto.CommentResponse> addComment(
+            @PathVariable Long id,
+            @RequestBody com.studentquizz.dto.ForumDto.CreateCommentRequest req) {
+        return ResponseEntity.ok(quizService.addComment(id, req));
+    }
 }

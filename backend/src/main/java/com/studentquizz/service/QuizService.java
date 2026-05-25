@@ -7,6 +7,8 @@ import com.studentquizz.dto.QuizDto;
 import com.studentquizz.model.Question;
 import com.studentquizz.model.Quiz;
 import com.studentquizz.model.User;
+import com.studentquizz.model.QuizComment;
+import com.studentquizz.repository.QuizCommentRepository;
 import com.studentquizz.repository.QuizRepository;
 import com.studentquizz.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class QuizService {
     private final UserRepository userRepository;
     private final DocumentParserService documentParserService;
     private final AiQuizGeneratorService aiQuizGeneratorService;
+    private final QuizCommentRepository quizCommentRepository;
 
     public List<QuizDto> getFeatured() {
         return quizRepository.findByFeaturedTrueAndStatusOrderByPlayCountDesc("APPROVED")
@@ -69,26 +72,32 @@ public class QuizService {
         int count = req.getQuestionCount() != null ? req.getQuestionCount() : 10;
         String initialStatus = "ADMIN".equals(author.getRole()) ? "APPROVED" : "PENDING";
 
-        // Parse tài liệu nếu có file
-        String documentText = "";
-        try {
-            if (file != null && !file.isEmpty()) {
-                documentText = documentParserService.extractText(file);
-                if (documentText.length() > 12000) {
-                    documentText = documentText.substring(0, 12000);
+        List<QuestionDto> questionsList;
+        if (req.getQuestions() != null && !req.getQuestions().isEmpty()) {
+            log.info("📝 Tạo quiz thủ công với {} câu hỏi...", req.getQuestions().size());
+            questionsList = req.getQuestions();
+        } else {
+            // Parse tài liệu nếu có file
+            String documentText = "";
+            try {
+                if (file != null && !file.isEmpty()) {
+                    documentText = documentParserService.extractText(file);
+                    if (documentText.length() > 12000) {
+                        documentText = documentText.substring(0, 12000);
+                    }
+                    log.info("📄 Đã đọc file: {} ký tự", documentText.length());
                 }
-                log.info("📄 Đã đọc file: {} ký tự", documentText.length());
+            } catch (Exception e) {
+                log.error("Lỗi khi đọc file: ", e);
+                throw new RuntimeException("Không thể đọc file: " + e.getMessage());
             }
-        } catch (Exception e) {
-            log.error("Lỗi khi đọc file: ", e);
-            throw new RuntimeException("Không thể đọc file: " + e.getMessage());
-        }
 
-        // Gọi AI tạo câu hỏi
-        List<QuestionDto> aiQuestions = aiQuizGeneratorService.generateQuestions(documentText, count, req.getTitle());
+            // Gọi AI tạo câu hỏi
+            questionsList = aiQuizGeneratorService.generateQuestions(documentText, count, req.getTitle());
 
-        if (aiQuestions == null || aiQuestions.isEmpty()) {
-            throw new RuntimeException("Không thể tạo câu hỏi từ AI. Vui lòng kiểm tra lại nội dung file hoặc thử lại sau.");
+            if (questionsList == null || questionsList.isEmpty()) {
+                throw new RuntimeException("Không thể tạo câu hỏi từ AI. Vui lòng kiểm tra lại nội dung file hoặc thử lại sau.");
+            }
         }
 
         // Lưu Quiz
@@ -96,7 +105,7 @@ public class QuizService {
                 .title(req.getTitle())
                 .category(req.getCategory())
                 .description(req.getDescription())
-                .questionCount(aiQuestions.size())
+                .questionCount(questionsList.size())
                 .author(author)
                 .featured(false)
                 .status(initialStatus)
@@ -105,7 +114,7 @@ public class QuizService {
         quiz = quizRepository.save(quiz);
 
         Quiz finalQuiz = quiz;
-        List<Question> questions = aiQuestions.stream().map(dto -> Question.builder()
+        List<Question> questions = questionsList.stream().map(dto -> Question.builder()
                 .quiz(finalQuiz)
                 .content(dto.getContent())
                 .options(dto.getOptions())
@@ -198,4 +207,92 @@ public class QuizService {
         return toDto(quizRepository.save(quiz));
     }
 
+    @Transactional(readOnly = true)
+    public List<com.studentquizz.dto.ForumDto.CommentResponse> getComments(Long quizId) {
+        List<QuizComment> flat = quizCommentRepository.findByQuizIdOrderByCreatedAtAsc(quizId);
+        java.util.Map<Long, com.studentquizz.dto.ForumDto.CommentResponse> dtoMap = new java.util.LinkedHashMap<>();
+        List<com.studentquizz.dto.ForumDto.CommentResponse> roots = new java.util.ArrayList<>();
+
+        for (QuizComment comment : flat) {
+            com.studentquizz.dto.ForumDto.CommentResponse dto = toCommentDto(comment);
+            dto.setReplies(new java.util.ArrayList<>());
+            dtoMap.put(comment.getId(), dto);
+        }
+
+        for (QuizComment comment : flat) {
+            com.studentquizz.dto.ForumDto.CommentResponse dto = dtoMap.get(comment.getId());
+            if (comment.getParent() == null) {
+                roots.add(dto);
+            } else {
+                com.studentquizz.dto.ForumDto.CommentResponse parentDto = dtoMap.get(comment.getParent().getId());
+                if (parentDto != null) {
+                    parentDto.getReplies().add(dto);
+                } else {
+                    roots.add(dto);
+                }
+            }
+        }
+        return roots;
+    }
+
+    @Transactional
+    public com.studentquizz.dto.ForumDto.CommentResponse addComment(Long quizId, com.studentquizz.dto.ForumDto.CreateCommentRequest req) {
+        User author = getCurrentUser();
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found"));
+        if (!"APPROVED".equals(quiz.getStatus())) {
+            throw new RuntimeException("Chỉ có thể bình luận quiz đã được duyệt.");
+        }
+        if (req.getContent() == null || req.getContent().trim().isEmpty()) {
+            throw new RuntimeException("Nội dung bình luận không được để trống.");
+        }
+
+        QuizComment parent = null;
+        if (req.getParentId() != null) {
+            parent = quizCommentRepository.findById(req.getParentId())
+                    .orElseThrow(() -> new RuntimeException("Bình luận không tồn tại."));
+            if (!parent.getQuiz().getId().equals(quizId)) {
+                throw new RuntimeException("Bình luận không thuộc quiz này.");
+            }
+        }
+
+        QuizComment comment = QuizComment.builder()
+                .content(req.getContent().trim())
+                .author(author)
+                .quiz(quiz)
+                .parent(parent)
+                .build();
+        comment = quizCommentRepository.save(comment);
+        return toCommentDto(comment);
+    }
+
+    private com.studentquizz.dto.ForumDto.CommentResponse toCommentDto(QuizComment c) {
+        String replyTo = null;
+        Long parentId = null;
+        if (c.getParent() != null) {
+            parentId = c.getParent().getId();
+            if (c.getParent().getAuthor() != null) {
+                replyTo = c.getParent().getAuthor().getName();
+            }
+        }
+        return com.studentquizz.dto.ForumDto.CommentResponse.builder()
+                .id(c.getId())
+                .content(c.getContent())
+                .author(toAuthorDto(c.getAuthor()))
+                .likeCount(c.getLikeCount())
+                .createdAt(c.getCreatedAt())
+                .parentId(parentId)
+                .replyToAuthorName(replyTo)
+                .replies(new java.util.ArrayList<>())
+                .build();
+    }
+
+    private AuthorDto toAuthorDto(User user) {
+        if (user == null) return null;
+        return AuthorDto.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .avatar(user.getAvatar())
+                .build();
+    }
 }

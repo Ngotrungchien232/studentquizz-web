@@ -1,5 +1,5 @@
 import api from './api';
-import type { Quiz, ForumPost, ForumComment, CreateQuizRequest } from '../types';
+import type { Quiz, ForumPost, ForumComment, CreateQuizRequest, QuizComment } from '../types';
 
 /* ─── Quiz Service ─── */
 export const quizService = {
@@ -24,21 +24,36 @@ export const quizService = {
   },
 
   create: async (req: CreateQuizRequest, file?: File): Promise<Quiz> => {
-    const formData = new FormData();
-    formData.append('title', req.title);
-    formData.append('category', req.category);
-    formData.append('description', req.description || '');
-    formData.append('questionCount', String(req.questionCount));
-    if (file) formData.append('file', file);
+    if (file) {
+      const formData = new FormData();
+      formData.append('title', req.title);
+      formData.append('category', req.category);
+      formData.append('description', req.description || '');
+      formData.append('questionCount', String(req.questionCount));
+      formData.append('file', file);
 
-    const { data } = await api.post('/quizzes', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return data;
+      const { data } = await api.post('/quizzes', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return data;
+    } else {
+      const { data } = await api.post('/quizzes', req);
+      return data;
+    }
   },
 
   appeal: async (id: number, appealMessage: string): Promise<Quiz> => {
     const { data } = await api.put(`/quizzes/${id}/appeal`, { appealMessage });
+    return data;
+  },
+
+  getComments: async (quizId: number): Promise<QuizComment[]> => {
+    const { data } = await api.get(`/quizzes/${quizId}/comments`);
+    return data;
+  },
+
+  addComment: async (quizId: number, content: string, parentId?: number): Promise<QuizComment> => {
+    const { data } = await api.post(`/quizzes/${quizId}/comments`, { content, parentId });
     return data;
   },
 };

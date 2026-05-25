@@ -41,6 +41,9 @@ public class Quiz {
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Question> questions;
 
+    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<QuizComment> comments;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

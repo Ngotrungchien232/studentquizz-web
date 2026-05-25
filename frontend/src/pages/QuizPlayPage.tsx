@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, XCircle, Trophy, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Trophy, RotateCcw, Send, Play, HelpCircle, UserCheck, Loader2 } from 'lucide-react';
 import { quizService } from '../services/quizService';
-import type { Quiz, Question } from '../types';
+import { useAuth } from '../context/AuthContext';
+import CommentThread from '../components/Forum/CommentThread';
+import type { Quiz, Question, QuizComment } from '../types';
 import './QuizPlayPage.css';
 
 const QuizPlayPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   
+  const [hasStarted, setHasStarted] = useState(false);
+  const [comments, setComments] = useState<QuizComment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
@@ -26,7 +34,30 @@ const QuizPlayPage = () => {
     }).catch(() => {
       setLoading(false);
     });
+
+    quizService.getComments(Number(id))
+      .then(setComments)
+      .catch(console.error);
   }, [id]);
+
+  const handleAddComment = async (e: React.FormEvent, parentId?: number) => {
+    e.preventDefault();
+    if (!id) return;
+    const content = newComment.trim();
+    if (!content) return;
+
+    setSubmittingComment(true);
+    try {
+      await quizService.addComment(Number(id), content, parentId);
+      setNewComment('');
+      const freshComments = await quizService.getComments(Number(id));
+      setComments(freshComments);
+    } catch (err) {
+      console.error('Lỗi khi thêm bình luận:', err);
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
 
   useEffect(() => {
     if (!isFinished || playRecorded || !id) return;
@@ -54,6 +85,125 @@ const QuizPlayPage = () => {
         </h2>
         <Link to="/explore" className="btn btn-primary">Quay lại Khám phá</Link>
       </div>
+    );
+  }
+
+  // Render landing page if not started
+  if (!hasStarted) {
+    const totalCommentsCount = comments.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0);
+    const getInitials = (name: string) =>
+      name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
+    const handleReply = async (parentId: number, content: string) => {
+      await quizService.addComment(Number(id), content, parentId);
+      const freshComments = await quizService.getComments(Number(id));
+      setComments(freshComments);
+    };
+
+    return (
+      <main className="quiz-landing-page">
+        <div className="container">
+          <Link to="/explore" className="back-link">
+            <ArrowLeft size={16} /> Khám phá Quiz
+          </Link>
+
+          <div className="quiz-landing-layout">
+            {/* Quiz Info Card */}
+            <div className="quiz-info-card card">
+              <span className="quiz-category-tag">{quiz.category}</span>
+              <h1 className="quiz-landing-title">{quiz.title}</h1>
+              {quiz.description && <p className="quiz-landing-description">{quiz.description}</p>}
+              
+              <div className="quiz-landing-stats">
+                <div className="stat-item">
+                  <HelpCircle size={18} className="stat-icon" />
+                  <div>
+                    <span className="stat-value">{quiz.questions.length}</span>
+                    <span className="stat-label">câu hỏi</span>
+                  </div>
+                </div>
+                <div className="stat-item">
+                  <Play size={18} className="stat-icon" />
+                  <div>
+                    <span className="stat-value">{quiz.playCount}</span>
+                    <span className="stat-label">lượt chơi</span>
+                  </div>
+                </div>
+                {quiz.author && (
+                  <div className="stat-item">
+                    <UserCheck size={18} className="stat-icon" />
+                    <div>
+                      <span className="stat-value">{quiz.author.name}</span>
+                      <span className="stat-label">người tạo</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button className="btn btn-primary btn-start-play-quiz" onClick={() => setHasStarted(true)}>
+                <Play size={18} fill="currentColor" /> Bắt đầu làm bài
+              </button>
+            </div>
+
+            {/* Quiz Comments Section */}
+            <section className="quiz-comments-section">
+              <h2 className="comments-title">Thảo luận & Đánh giá ({totalCommentsCount})</h2>
+
+              {isAuthenticated ? (
+                <form onSubmit={(e) => handleAddComment(e)} className="comment-form">
+                  <div
+                    className="comment-form__avatar"
+                    style={{ background: AVATAR_COLORS[(user?.id || 0) % AVATAR_COLORS.length] }}
+                  >
+                    {user ? getInitials(user.name) : '?'}
+                  </div>
+                  <div className="comment-form__input-wrap">
+                    <textarea
+                      id="comment-input"
+                      className="comment-form__input"
+                      placeholder="Viết bình luận hoặc câu hỏi của bạn về bài quiz này..."
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      rows={3}
+                      maxLength={500}
+                    />
+                    <div className="comment-form__footer">
+                      <span className="form-char-count">{newComment.length}/500</span>
+                      <button
+                        id="submit-comment-btn"
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={!newComment.trim() || submittingComment}
+                      >
+                        {submittingComment ? <Loader2 size={15} className="spin" /> : <Send size={15} />}
+                        Gửi bình luận
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="comment-login-prompt">
+                  <Link to="/login" className="auth-link">Đăng nhập</Link> để tham gia thảo luận về bài quiz.
+                </div>
+              )}
+
+              <div className="comment-list" style={{ marginTop: '24px' }}>
+                {comments.map(comment => (
+                  <CommentThread
+                    key={comment.id}
+                    comment={comment}
+                    isAuthenticated={isAuthenticated}
+                    onReply={handleReply}
+                  />
+                ))}
+                {comments.length === 0 && (
+                  <div className="comments-empty">Chưa có bình luận nào cho bài Quiz này. Hãy là người đầu tiên thảo luận!</div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
     );
   }
 

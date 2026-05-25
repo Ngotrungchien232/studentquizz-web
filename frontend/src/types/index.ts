@@ -76,4 +76,24 @@ export interface CreateQuizRequest {
   category: string;
   description?: string;
   questionCount: number;
+  questions?: {
+    content: string;
+    options: string[];
+    correctAnswer: number;
+    explanation?: string;
+  }[];
+}
+
+export interface QuizComment {
+  id: number;
+  content: string;
+  author: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  parentId?: number;
+  replyToAuthorName?: string;
+  replies?: QuizComment[];
 }
