@@ -26,6 +26,9 @@ class BackendApplicationTests {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.studentquizz.repository.QuizRepository quizRepository;
+
     @Test
     void testCreateManualQuizAndGet() {
         // 1. Create and save a user
@@ -36,7 +39,12 @@ class BackendApplicationTests {
                 .role("USER")
                 .locked(false)
                 .build();
-        userRepository.findByEmail(user.getEmail()).ifPresent(userRepository::delete);
+        userRepository.findByEmail(user.getEmail()).ifPresent(existingUser -> {
+            quizRepository.findByAuthorIdOrderByCreatedAtDesc(existingUser.getId()).forEach(q -> {
+                quizRepository.delete(q);
+            });
+            userRepository.delete(existingUser);
+        });
         user = userRepository.save(user);
 
         // 2. Mock Security Context

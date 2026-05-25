@@ -33,7 +33,7 @@ public class User {
     private String role = "USER"; // USER | ADMIN
 
     @Builder.Default
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private Boolean locked = false;
 
     @Column(columnDefinition = "TEXT")
