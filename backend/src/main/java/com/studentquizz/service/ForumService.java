@@ -31,6 +31,7 @@ public class ForumService {
     private final ForumCommentRepository commentRepository;
     private final ForumPostLikeRepository likeRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public List<ForumDto.PostResponse> getAllPosts() {
         return postRepository.findByStatusOrderByCreatedAtDesc("APPROVED")
@@ -87,6 +88,17 @@ public class ForumService {
         likeRepository.save(ForumPostLike.builder().post(post).user(user).build());
         post.setLikeCount(post.getLikeCount() + 1);
         postRepository.save(post);
+
+        // Notify post author
+        notificationService.createNotification(
+            post.getAuthor(),
+            user,
+            "LIKE",
+            post.getId(),
+            null,
+            String.format("%s đã thích bài viết của bạn: \"%s\"", user.getName(), post.getTitle())
+        );
+
         return ForumDto.LikeResponse.builder()
                 .likeCount(post.getLikeCount())
                 .liked(true)
@@ -151,6 +163,41 @@ public class ForumService {
         comment = commentRepository.save(comment);
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
+
+        // Send notifications
+        if (parent == null) {
+            notificationService.createNotification(
+                post.getAuthor(),
+                author,
+                "COMMENT",
+                post.getId(),
+                null,
+                String.format("%s đã bình luận về bài viết của bạn: \"%s\"", author.getName(), post.getTitle())
+            );
+        } else {
+            // Notify the parent comment author
+            notificationService.createNotification(
+                parent.getAuthor(),
+                author,
+                "REPLY",
+                post.getId(),
+                null,
+                String.format("%s đã phản hồi bình luận của bạn trong bài viết: \"%s\"", author.getName(), post.getTitle())
+            );
+            // Notify the post author as well (if different from the parent comment author)
+            if (post.getAuthor() != null && parent.getAuthor() != null &&
+                !post.getAuthor().getId().equals(parent.getAuthor().getId())) {
+                notificationService.createNotification(
+                    post.getAuthor(),
+                    author,
+                    "COMMENT",
+                    post.getId(),
+                    null,
+                    String.format("%s đã bình luận về bài viết của bạn: \"%s\"", author.getName(), post.getTitle())
+                );
+            }
+        }
+
         return toCommentDto(comment);
     }
 

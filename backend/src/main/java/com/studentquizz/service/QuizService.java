@@ -35,6 +35,7 @@ public class QuizService {
     private final DocumentParserService documentParserService;
     private final AiQuizGeneratorService aiQuizGeneratorService;
     private final QuizCommentRepository quizCommentRepository;
+    private final NotificationService notificationService;
 
     public List<QuizDto> getFeatured() {
         return quizRepository.findByFeaturedTrueAndStatusOrderByPlayCountDesc("APPROVED")
@@ -263,6 +264,41 @@ public class QuizService {
                 .parent(parent)
                 .build();
         comment = quizCommentRepository.save(comment);
+
+        // Send notifications for Quiz Comments / Replies
+        if (parent == null) {
+            notificationService.createNotification(
+                quiz.getAuthor(),
+                author,
+                "QUIZ_COMMENT",
+                null,
+                quiz.getId(),
+                String.format("%s đã bình luận về bài quiz của bạn: \"%s\"", author.getName(), quiz.getTitle())
+            );
+        } else {
+            // Notify the parent comment author
+            notificationService.createNotification(
+                parent.getAuthor(),
+                author,
+                "QUIZ_REPLY",
+                null,
+                quiz.getId(),
+                String.format("%s đã phản hồi bình luận của bạn trong bài quiz: \"%s\"", author.getName(), quiz.getTitle())
+            );
+            // Notify the quiz author as well (if different from parent comment author)
+            if (quiz.getAuthor() != null && parent.getAuthor() != null &&
+                !quiz.getAuthor().getId().equals(parent.getAuthor().getId())) {
+                notificationService.createNotification(
+                    quiz.getAuthor(),
+                    author,
+                    "QUIZ_COMMENT",
+                    null,
+                    quiz.getId(),
+                    String.format("%s đã bình luận về bài quiz của bạn: \"%s\"", author.getName(), quiz.getTitle())
+                );
+            }
+        }
+
         return toCommentDto(comment);
     }
 

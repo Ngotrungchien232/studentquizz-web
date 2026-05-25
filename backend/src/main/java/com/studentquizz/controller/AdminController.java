@@ -7,6 +7,7 @@ import com.studentquizz.repository.ForumCommentRepository;
 import com.studentquizz.repository.ForumPostRepository;
 import com.studentquizz.repository.QuizCommentRepository;
 import com.studentquizz.repository.QuizRepository;
+import com.studentquizz.repository.NotificationRepository;
 import com.studentquizz.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ public class AdminController {
     private final ForumCommentRepository forumCommentRepository;
     private final com.studentquizz.repository.ForumPostLikeRepository forumPostLikeRepository;
     private final QuizCommentRepository quizCommentRepository;
+    private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ─── Dashboard Stats ──────────────────────────────────────────────────────
@@ -120,22 +122,27 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
 
-        // 1. Delete likes and comments written by the user
+        // 1. Delete likes, comments, and notifications written by/received by the user
         forumPostLikeRepository.deleteByUserId(id);
         forumCommentRepository.deleteByAuthorId(id);
         quizCommentRepository.deleteByAuthorId(id);
+        notificationRepository.deleteByRecipientId(id);
+        notificationRepository.deleteByActorId(id);
 
         // 2. Find and delete all posts by the user (and comments on those posts)
         java.util.List<ForumPost> posts = forumPostRepository.findByAuthorIdOrderByCreatedAtDesc(id);
         for (ForumPost post : posts) {
             forumCommentRepository.deleteByPostId(post.getId());
             forumPostLikeRepository.deleteByPostId(post.getId());
+            notificationRepository.deleteByPostId(post.getId());
             forumPostRepository.delete(post);
         }
 
         // 3. Find and delete all quizzes by the user
         java.util.List<Quiz> quizzes = quizRepository.findByAuthorIdOrderByCreatedAtDesc(id);
         for (Quiz quiz : quizzes) {
+            quizCommentRepository.deleteByQuizId(quiz.getId());
+            notificationRepository.deleteByQuizId(quiz.getId());
             quizRepository.delete(quiz);
         }
 
@@ -184,6 +191,8 @@ public class AdminController {
         if (!quizRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+        quizCommentRepository.deleteByQuizId(id);
+        notificationRepository.deleteByQuizId(id);
         quizRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Quiz deleted"));
     }
@@ -242,6 +251,7 @@ public class AdminController {
         }
         forumCommentRepository.deleteByPostId(id);
         forumPostLikeRepository.deleteByPostId(id);
+        notificationRepository.deleteByPostId(id);
         forumPostRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("message", "Post deleted"));
     }

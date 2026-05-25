@@ -97,3 +97,18 @@ export interface QuizComment {
   replyToAuthorName?: string;
   replies?: QuizComment[];
 }
+
+export interface Notification {
+  id: number;
+  type: 'LIKE' | 'COMMENT' | 'REPLY' | 'QUIZ_COMMENT' | 'QUIZ_REPLY';
+  postId?: number;
+  quizId?: number;
+  message: string;
+  isRead: boolean; // Map to the backend name (mapped from Boolean isRead / @Column name="is_read")
+  createdAt: string;
+  actor: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
+}

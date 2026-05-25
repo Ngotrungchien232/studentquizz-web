@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, User, ChevronDown } from 'lucide-react';
+import { Menu, X, LogOut, User, ChevronDown, Bell, Heart, MessageSquare, Reply } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/notificationService';
+import type { Notification } from '../../types';
 import './Navbar.css';
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -17,14 +26,126 @@ const Navbar = () => {
     { to: '/forum', label: 'Diễn đàn' },
   ];
 
+  // Fetch unread count and set up polling every 30s
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+      } catch (err) {
+        console.error('Lỗi khi lấy số lượng thông báo:', err);
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, user]);
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleToggleNotifications = async () => {
+    const nextShow = !showNotifications;
+    setShowNotifications(nextShow);
+    if (userDropdown) setUserDropdown(false);
+
+    if (nextShow) {
+      try {
+        const data = await notificationService.getAll();
+        setNotifications(data);
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+      } catch (err) {
+        console.error('Lỗi khi lấy danh sách thông báo:', err);
+      }
+    }
+  };
+
+  const handleNotificationClick = async (n: Notification) => {
+    setShowNotifications(false);
+    try {
+      if (!n.isRead) {
+        await notificationService.markAsRead(n.id);
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      if (n.type === 'QUIZ_COMMENT' || n.type === 'QUIZ_REPLY') {
+        if (n.quizId) {
+          navigate(`/quiz/${n.quizId}`);
+        }
+      } else {
+        if (n.postId) {
+          navigate(`/forum/${n.postId}`);
+        }
+      }
+    } catch (err) {
+      console.error('Lỗi khi xử lý click thông báo:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await notificationService.markAllAsRead();
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error('Lỗi khi đánh dấu tất cả đã đọc:', err);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     setUserDropdown(false);
+    setShowNotifications(false);
     navigate('/');
   };
 
   const getInitials = (name: string) =>
     name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Vừa xong';
+    if (diffMins < 60) return `${diffMins} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const renderNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'LIKE':
+        return <Heart size={12} className="navbar__notification-item-icon navbar__notification-item-icon--like" fill="currentColor" />;
+      case 'COMMENT':
+      case 'QUIZ_COMMENT':
+        return <MessageSquare size={12} className="navbar__notification-item-icon navbar__notification-item-icon--comment" fill="currentColor" />;
+      case 'REPLY':
+      case 'QUIZ_REPLY':
+        return <Reply size={12} className="navbar__notification-item-icon navbar__notification-item-icon--reply" />;
+      default:
+        return <Bell size={12} className="navbar__notification-item-icon" />;
+    }
+  };
 
   return (
     <nav className="navbar">
@@ -52,32 +173,98 @@ const Navbar = () => {
         {/* Auth Buttons / User Menu */}
         <div className="navbar__auth">
           {isAuthenticated && user ? (
-            <div className="navbar__user" onClick={() => setUserDropdown(!userDropdown)}>
-              <div className="navbar__user-avatar">
-                {getInitials(user.name)}
-              </div>
-              <span className="navbar__user-name">{user.name.split(' ').pop()}</span>
-              <ChevronDown size={14} className={`navbar__chevron ${userDropdown ? 'open' : ''}`} />
+            <>
+              {/* Notification Bell */}
+              <div className="navbar__notification-container" ref={notificationRef}>
+                <button 
+                  className={`navbar__notification-btn ${showNotifications ? 'active' : ''}`}
+                  onClick={handleToggleNotifications}
+                  aria-label="Thông báo"
+                >
+                  <Bell size={20} />
+                  {unreadCount > 0 && (
+                    <span className="navbar__notification-badge">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
 
-              {userDropdown && (
-                <div className="navbar__dropdown">
-                  <div className="navbar__dropdown-header">
-                    <div className="navbar__dropdown-avatar">{getInitials(user.name)}</div>
-                    <div>
-                      <div className="navbar__dropdown-name">{user.name}</div>
-                      <div className="navbar__dropdown-email">{user.email}</div>
+                {showNotifications && (
+                  <div className="navbar__notification-dropdown">
+                    <div className="navbar__notification-header">
+                      <h3>Thông báo</h3>
+                      {unreadCount > 0 && (
+                        <button onClick={handleMarkAllAsRead} className="navbar__notification-clear">
+                          Đọc tất cả
+                        </button>
+                      )}
+                    </div>
+                    <div className="navbar__notification-divider" />
+                    <div className="navbar__notification-list">
+                      {notifications.length === 0 ? (
+                        <div className="navbar__notification-empty">
+                          Không có thông báo nào.
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div 
+                            key={n.id} 
+                            className={`navbar__notification-item ${!n.isRead ? 'unread' : ''}`}
+                            onClick={() => handleNotificationClick(n)}
+                          >
+                            <div className="navbar__notification-item-avatar-wrapper">
+                              {n.actor?.avatar ? (
+                                <img src={n.actor.avatar} alt={n.actor.name} className="navbar__notification-item-avatar" />
+                              ) : (
+                                <div className="navbar__notification-item-avatar-placeholder">
+                                  {getInitials(n.actor?.name || 'User')}
+                                </div>
+                              )}
+                              <div className="navbar__notification-item-badge">
+                                {renderNotificationIcon(n.type)}
+                              </div>
+                            </div>
+                            <div className="navbar__notification-item-content">
+                              <p className="navbar__notification-item-text">{n.message}</p>
+                              <span className="navbar__notification-item-time">{formatTime(n.createdAt)}</span>
+                            </div>
+                            {!n.isRead && <div className="navbar__notification-unread-dot" />}
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-                  <div className="navbar__dropdown-divider" />
-                  <Link to="/profile" className="navbar__dropdown-item" onClick={() => setUserDropdown(false)}>
-                    <User size={15} /> Hồ sơ
-                  </Link>
-                  <button className="navbar__dropdown-item navbar__dropdown-item--danger" onClick={handleLogout}>
-                    <LogOut size={15} /> Đăng xuất
-                  </button>
+                )}
+              </div>
+
+              {/* User Dropdown */}
+              <div className="navbar__user" onClick={() => { setUserDropdown(!userDropdown); setShowNotifications(false); }} ref={userMenuRef}>
+                <div className="navbar__user-avatar">
+                  {getInitials(user.name)}
                 </div>
-              )}
-            </div>
+                <span className="navbar__user-name">{user.name.split(' ').pop()}</span>
+                <ChevronDown size={14} className={`navbar__chevron ${userDropdown ? 'open' : ''}`} />
+
+                {userDropdown && (
+                  <div className="navbar__dropdown">
+                    <div className="navbar__dropdown-header">
+                      <div className="navbar__dropdown-avatar">{getInitials(user.name)}</div>
+                      <div>
+                        <div className="navbar__dropdown-name">{user.name}</div>
+                        <div className="navbar__dropdown-email">{user.email}</div>
+                      </div>
+                    </div>
+                    <div className="navbar__dropdown-divider" />
+                    <Link to="/profile" className="navbar__dropdown-item" onClick={() => setUserDropdown(false)}>
+                      <User size={15} /> Hồ sơ
+                    </Link>
+                    <button className="navbar__dropdown-item navbar__dropdown-item--danger" onClick={handleLogout}>
+                      <LogOut size={15} /> Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <>
               <Link to="/login" className="btn btn-ghost">Đăng nhập</Link>
