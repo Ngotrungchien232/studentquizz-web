@@ -32,7 +32,7 @@
 .upload-zone {
   border: 2px dashed var(--primary-mid);
   border-radius: var(--border-radius-lg);
-  background: white;
+  background: rgba(255, 255, 255, 0.02) !important;
   transition: var(--transition);
   min-height: 180px;
   display: flex;
@@ -116,7 +116,7 @@
 }
 
 .upload-zone__remove {
-  background: white;
+  background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid var(--card-border);
   border-radius: 8px;
   width: 32px;
@@ -130,7 +130,7 @@
 }
 
 .upload-zone__remove:hover {
-  background: #FEE2E2;
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 /* Form fields */
@@ -138,8 +138,8 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  background: white;
-  border: 1px solid var(--card-border);
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
   border-radius: var(--border-radius-lg);
   padding: 28px;
 }
@@ -165,7 +165,7 @@
 .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  background: white;
+  background: rgba(255, 255, 255, 0.05) !important;
   box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
 }
 
@@ -228,7 +228,7 @@
   flex-direction: column;
   gap: 12px;
   text-align: left;
-  background: white;
+  background: var(--card-bg) !important;
   border: 1px solid var(--card-border);
   border-radius: var(--border-radius-lg);
   padding: 20px 24px;
@@ -287,19 +287,19 @@
 .create-auth-notice {
   max-width: 600px;
   margin: 0 auto 20px;
-  background: #FFF7ED;
-  border: 1px solid #FED7AA;
+  background: rgba(249, 115, 22, 0.1) !important;
+  border: 1px solid rgba(249, 115, 22, 0.3) !important;
   border-radius: var(--border-radius);
   padding: 12px 16px;
   font-size: 0.88rem;
-  color: #92400E;
+  color: #FDBA74 !important;
   text-align: center;
 }
 
 .create-error {
-  background: #FEE2E2;
-  border: 1px solid #FECACA;
-  color: #DC2626;
+  background: rgba(239, 68, 68, 0.1) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  color: #FCA5A5 !important;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 0.88rem;
@@ -388,8 +388,9 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: #D1FAE5;
-  color: #10B981;
+  background: rgba(16, 185, 129, 0.1);
+  color: #34D399;
+  border: 2px solid rgba(16, 185, 129, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -415,7 +416,7 @@
   max-width: 600px;
   margin: 0 auto 24px;
   display: flex;
-  background: white;
+  background: var(--card-bg) !important;
   border: 1px solid var(--card-border);
   border-radius: var(--border-radius-lg);
   padding: 6px;
@@ -512,7 +513,7 @@
 }
 
 .btn-remove-question:hover {
-  background: #FEE2E2;
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 .manual-options-grid {
@@ -524,7 +525,7 @@
 .manual-option-item {
   display: flex;
   align-items: center;
-  background: white;
+  background: rgba(255, 255, 255, 0.02) !important;
   border: 1.5px solid var(--card-border);
   border-radius: var(--border-radius);
   padding: 4px 12px 4px 4px;
@@ -582,7 +583,7 @@
   border-style: dashed !important;
   color: var(--primary) !important;
   font-weight: 600;
-  background: white !important;
+  background: rgba(255, 255, 255, 0.02) !important;
   padding: 12px !important;
 }
 

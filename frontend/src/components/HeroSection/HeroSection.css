@@ -1,6 +1,10 @@
 .hero {
   padding: 80px 0 100px;
-  background: linear-gradient(180deg, #faf7ff 0%, #ffffff 100%);
+  background: radial-gradient(circle at 10% 20%, rgba(124, 58, 237, 0.08) 0%, rgba(0, 0, 0, 0) 60%), 
+              radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.08) 0%, rgba(0, 0, 0, 0) 60%),
+              var(--bg) !important;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero__inner {
@@ -41,26 +45,27 @@
 
 /* ─── Demo Card ─── */
 .demo-card {
-  background: white;
-  border: 1px solid var(--primary-mid);
+  background: var(--card-bg) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: var(--border-radius-xl);
   padding: 24px;
-  box-shadow: 0 8px 40px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
   max-width: 340px;
   animation: float 4s ease-in-out infinite;
+  backdrop-filter: blur(16px);
 }
 
 .demo-step {
-  background: white;
-  border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
   border-radius: var(--border-radius);
   padding: 14px 16px;
   transition: var(--transition);
 }
 
 .demo-step--success {
-  border-color: #D1FAE5;
-  background: #F0FDF4;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  background: rgba(16, 185, 129, 0.05) !important;
 }
 
 .demo-step__header {
