@@ -9,9 +9,9 @@
   --primary-gradient: linear-gradient(135deg, #7C3AED 0%, #9F67FA 100%);
   --primary-gradient-card: linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%);
 
-  --text-primary: #1F2937;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
   --text-white: #FFFFFF;
 
   --bg: transparent;
@@ -175,7 +175,7 @@ img {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* ─── Animations ─────────────────────────────────────────── */

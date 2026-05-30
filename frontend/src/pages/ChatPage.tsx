@@ -4,6 +4,7 @@ import { Send, Search, MessageSquare, ArrowLeft } from 'lucide-react';
 import { chatService, type Author } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import type { ChatMessage, Conversation } from '../types';
+import { UserProfileModal } from '../components/UserProfileModal';
 import './ChatPage.css';
 
 const ChatPage = () => {
@@ -19,6 +20,7 @@ const ChatPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollInterval = useRef<any>(null);
@@ -297,7 +299,7 @@ const ChatPage = () => {
                 </button>
                 <div 
                   className="chat-page__header-user"
-                  onClick={() => navigate(`/profile/${activeFriend.id}`)}
+                  onClick={() => setShowProfileModal(true)}
                   style={{ cursor: 'pointer' }}
                 >
                   {activeFriend.avatar ? (
@@ -390,6 +392,13 @@ const ChatPage = () => {
           )}
         </div>
       </div>
+
+      {showProfileModal && activeFriend && (
+        <UserProfileModal 
+          userId={activeFriend.id} 
+          onClose={() => setShowProfileModal(false)} 
+        />
+      )}
     </div>
   );
 };
