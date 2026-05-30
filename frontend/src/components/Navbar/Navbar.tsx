@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, User, ChevronDown, Bell, Heart, MessageSquare, Reply } from 'lucide-react';
+import { Menu, X, LogOut, User, ChevronDown, Bell, Heart, MessageSquare, Reply, UserPlus, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { chatService } from '../../services/chatService';
+import { UserProfileModal } from '../UserProfileModal';
 import type { Notification } from '../../types';
 import './Navbar.css';
 
@@ -14,6 +15,7 @@ const Navbar = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
+  const [selectedFriendRequestUserId, setSelectedFriendRequestUserId] = useState<number | null>(null);
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -86,7 +88,9 @@ const Navbar = () => {
         await notificationService.markAsRead(n.id);
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
-      if (n.type === 'QUIZ_COMMENT' || n.type === 'QUIZ_REPLY') {
+      if (n.type === 'FRIEND_REQUEST') {
+        setSelectedFriendRequestUserId(n.actor.id);
+      } else if (n.type === 'QUIZ_COMMENT' || n.type === 'QUIZ_REPLY') {
         if (n.quizId) {
           navigate(`/quiz/${n.quizId}`);
         }
@@ -146,6 +150,10 @@ const Navbar = () => {
       case 'REPLY':
       case 'QUIZ_REPLY':
         return <Reply size={12} className="navbar__notification-item-icon navbar__notification-item-icon--reply" />;
+      case 'FRIEND_REQUEST':
+        return <UserPlus size={12} className="navbar__notification-item-icon" style={{ color: 'var(--primary)' }} />;
+      case 'FRIEND_ACCEPT':
+        return <UserCheck size={12} className="navbar__notification-item-icon" style={{ color: '#10B981' }} />;
       default:
         return <Bell size={12} className="navbar__notification-item-icon" />;
     }
@@ -333,6 +341,13 @@ const Navbar = () => {
             )}
           </div>
         </div>
+      )}
+
+      {selectedFriendRequestUserId !== null && (
+        <UserProfileModal 
+          userId={selectedFriendRequestUserId} 
+          onClose={() => setSelectedFriendRequestUserId(null)} 
+        />
       )}
     </nav>
   );
