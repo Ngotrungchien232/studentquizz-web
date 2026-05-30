@@ -1,6 +1,6 @@
 .quiz-play-page {
   min-height: calc(100vh - var(--nav-height));
-  background: var(--bg-soft);
+  background: transparent;
   padding: 40px 0;
 }
 
@@ -268,7 +268,7 @@
 /* Quiz Landing Page styles */
 .quiz-landing-page {
   padding: 40px 0 100px;
-  background: var(--bg-soft);
+  background: transparent;
   min-height: calc(100vh - var(--nav-height));
 }
 

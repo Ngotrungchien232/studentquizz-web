@@ -1,6 +1,6 @@
 .forum-page {
   min-height: calc(100vh - var(--nav-height));
-  background: var(--bg-soft);
+  background: transparent;
   padding: 48px 0 80px;
 }
 

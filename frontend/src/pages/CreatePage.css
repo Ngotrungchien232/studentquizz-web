@@ -1,6 +1,6 @@
 .create-page {
   min-height: calc(100vh - var(--nav-height));
-  background: var(--bg-soft);
+  background: transparent;
   padding: 60px 0 100px;
 }
 

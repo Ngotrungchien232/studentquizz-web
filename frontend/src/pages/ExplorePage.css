@@ -1,7 +1,7 @@
 .explore-page {
   padding: 60px 0 100px;
   min-height: calc(100vh - var(--nav-height));
-  background: var(--bg-soft);
+  background: transparent;
 }
 
 .explore-header {
