@@ -22,6 +22,7 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
     List<Quiz> searchPublicQuizzes(@Param("keyword") String keyword, @Param("status") String status);
     
     List<Quiz> findByAuthorIdOrderByCreatedAtDesc(Long authorId);
+    List<Quiz> findByAuthorIdAndStatusOrderByCreatedAtDesc(Long authorId, String status);
 
     @Query("SELECT COALESCE(SUM(q.playCount), 0) FROM Quiz q")
     long sumPlayCount();

@@ -18,6 +18,8 @@ interface Quiz {
 }
 
 
+import { quizService } from '../../services/quizService';
+
 const QuizzesPage: React.FC = () => {
   const { confirm, alert: showAlert } = useDialog();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -27,6 +29,8 @@ const QuizzesPage: React.FC = () => {
   const [totalElements, setTotalElements] = useState(0);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [rejectTarget, setRejectTarget] = useState<{ id: number; title: string } | null>(null);
+  const [selectedQuizDetails, setSelectedQuizDetails] = useState<any | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const load = async (p = 0) => {
     setLoading(true);
@@ -110,6 +114,18 @@ const QuizzesPage: React.FC = () => {
     } : q));
   };
 
+  const handleViewDetails = async (id: number) => {
+    try {
+      setDetailsLoading(true);
+      const data = await quizService.getById(id);
+      setSelectedQuizDetails(data);
+    } catch {
+      await showAlert({ title: 'Lỗi', message: 'Không thể lấy thông tin chi tiết bài kiểm tra.', variant: 'danger', theme: 'admin' });
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
   const categoryColors: Record<string, string> = {
     'Lịch sử': '#f59e0b', 'Hóa học': '#06d6a0', 'Ngoại ngữ': '#3b82f6',
     'Toán học': '#8b5cf6', 'Sinh học': '#10b981', 'Vật lý': '#f97316',
@@ -131,6 +147,106 @@ const QuizzesPage: React.FC = () => {
           onClose={() => setRejectTarget(null)}
           onConfirm={handleRejectConfirm}
         />
+      )}
+
+      {selectedQuizDetails && (
+        <div className="admin-modal-backdrop" onClick={() => setSelectedQuizDetails(null)}>
+          <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px', width: '95%' }}>
+            <div className="admin-modal-header">
+              <h3>Chi tiết bài kiểm tra</h3>
+              <button className="admin-modal-close" onClick={() => setSelectedQuizDetails(null)}>&times;</button>
+            </div>
+            <div className="admin-modal-content" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '20px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '1.2rem', marginBottom: '8px', color: 'var(--text-primary)' }}>{selectedQuizDetails.title}</h4>
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                  Danh mục: <strong style={{ color: '#f59e0b' }}>{selectedQuizDetails.category}</strong> | 
+                  Tác giả: <strong>{selectedQuizDetails.author?.name || '—'}</strong> | 
+                  Trạng thái: <strong>{selectedQuizDetails.status}</strong>
+                </p>
+                {selectedQuizDetails.description && (
+                  <p style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', fontSize: '0.9rem', color: '#475569', marginTop: '10px' }}>
+                    {selectedQuizDetails.description}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ marginTop: '20px' }}>
+                <h5 style={{ fontSize: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', marginBottom: '16px' }}>
+                  Danh sách câu hỏi ({selectedQuizDetails.questions?.length || 0} câu)
+                </h5>
+                {selectedQuizDetails.questions && selectedQuizDetails.questions.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {selectedQuizDetails.questions.map((q: any, idx: number) => (
+                      <div key={q.id || idx} style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <p style={{ fontWeight: 600, marginBottom: '10px' }}>Câu {idx + 1}: {q.content}</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', paddingLeft: '8px' }}>
+                          {q.options?.map((opt: string, oIdx: number) => {
+                            const isCorrect = oIdx === q.correctAnswer;
+                            return (
+                              <div 
+                                key={oIdx} 
+                                style={{ 
+                                  padding: '8px 12px', 
+                                  borderRadius: '6px', 
+                                  fontSize: '0.85rem',
+                                  background: isCorrect ? 'rgba(16, 185, 129, 0.1)' : 'white',
+                                  border: isCorrect ? '1px solid #10b981' : '1px solid #e2e8f0',
+                                  color: isCorrect ? '#047857' : '#334155',
+                                  fontWeight: isCorrect ? 600 : 400
+                                }}
+                              >
+                                {String.fromCharCode(65 + oIdx)}. {opt} {isCorrect && '✓'}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {q.explanation && (
+                          <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '10px', fontStyle: 'italic', borderTop: '1px dashed #cbd5e1', paddingTop: '8px' }}>
+                            💡 Giải thích: {q.explanation}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>Không có câu hỏi nào trong bài này.</p>
+                )}
+              </div>
+            </div>
+            <div className="admin-modal-footer">
+              <button className="admin-btn" style={{ background: '#64748b', color: 'white' }} onClick={() => setSelectedQuizDetails(null)}>
+                Đóng
+              </button>
+              {selectedQuizDetails.status === 'PENDING' && (
+                <>
+                  <button
+                    className="admin-btn"
+                    style={{ background: '#10b981', color: 'white' }}
+                    onClick={() => {
+                      const t = selectedQuizDetails;
+                      setSelectedQuizDetails(null);
+                      handleStatusUpdate(t.id, 'APPROVED', t.title);
+                    }}
+                  >
+                    Duyệt Quiz
+                  </button>
+                  <button
+                    className="admin-btn"
+                    style={{ background: '#ef4444', color: 'white' }}
+                    onClick={() => {
+                      const t = selectedQuizDetails;
+                      setSelectedQuizDetails(null);
+                      setRejectTarget({ id: t.id, title: t.title });
+                    }}
+                  >
+                    Từ chối
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
       <div className="admin-card">
         <div className="admin-card-header">
@@ -231,6 +347,14 @@ const QuizzesPage: React.FC = () => {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="admin-btn"
+                            style={{ background: '#3b82f6', color: 'white' }}
+                            onClick={() => handleViewDetails(quiz.id)}
+                            disabled={detailsLoading}
+                          >
+                            👁️ Xem
+                          </button>
                           {quiz.status === 'PENDING' && (
                             <>
                               <button

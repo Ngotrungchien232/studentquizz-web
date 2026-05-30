@@ -17,5 +17,13 @@ export const userService = {
   getMyProfile: async (): Promise<UserProfile> => {
     const response = await api.get('/users/me');
     return response.data;
+  },
+  getUserProfile: async (userId: number): Promise<UserProfile> => {
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
+  },
+  updateProfile: async (data: { name?: string; avatar?: string; password?: string }): Promise<UserProfile> => {
+    const response = await api.put('/users/me', data);
+    return response.data;
   }
 };

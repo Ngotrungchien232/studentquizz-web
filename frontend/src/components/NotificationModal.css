@@ -6,8 +6,8 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(7, 7, 9, 0.75) !important;
-  backdrop-filter: blur(8px) !important;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
   animation: notif-fade-in 0.25s ease;
 }
 
@@ -16,12 +16,11 @@
   width: 100%;
   max-width: 420px;
   padding: 32px 28px 28px;
-  background: var(--card-bg) !important;
+  background: var(--card-bg);
   border-radius: var(--border-radius-xl);
-  box-shadow: var(--card-shadow) !important;
-  border: 1px solid var(--card-border) !important;
+  box-shadow: 0 24px 48px rgba(124, 58, 237, 0.18), 0 8px 24px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--card-border);
   text-align: center;
-  backdrop-filter: blur(24px) !important;
   animation: notif-slide-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -35,16 +34,14 @@
   width: 32px;
   height: 32px;
   border-radius: var(--border-radius-full);
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: var(--bg-subtle);
   color: var(--text-secondary);
-  border: none;
-  cursor: pointer;
   transition: var(--transition);
 }
 
 .notif-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: var(--text-white) !important;
+  background: var(--primary-light);
+  color: var(--primary);
 }
 
 .notif-header-icon {
@@ -57,7 +54,6 @@
   border-radius: var(--border-radius-full);
   background: var(--primary-light);
   color: var(--primary);
-  border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
 .pulse-icon {
@@ -67,9 +63,8 @@
 .notif-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-white);
+  color: var(--text-primary);
   margin-bottom: 12px;
-  font-family: 'Outfit', sans-serif;
 }
 
 .notif-content {
@@ -87,26 +82,16 @@
   width: 100%;
   padding: 12px 20px;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-white);
-  background: var(--primary-gradient) !important;
-  border-radius: var(--border-radius-lg);
-  border: none;
-  cursor: pointer;
-  box-shadow: 0 3px 0 0 var(--primary-dark) !important;
-  transition: all 0.15s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-  position: relative;
-  top: 0;
+  background: var(--primary-gradient);
+  border-radius: var(--border-radius);
+  transition: var(--transition);
 }
 
 .notif-btn:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 5px 0 0 var(--primary-dark) !important;
-}
-
-.notif-btn:active {
-  transform: translateY(1px) !important;
-  box-shadow: none !important;
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 @keyframes notif-fade-in {

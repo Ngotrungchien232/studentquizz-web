@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar/Navbar';
 import Footer from './components/Footer/Footer';
@@ -12,51 +12,9 @@ import ForumPage from './pages/ForumPage';
 import ForumPostPage from './pages/ForumPostPage';
 import QuizPlayPage from './pages/QuizPlayPage';
 import ProfilePage from './pages/ProfilePage';
+import ChatPage from './pages/ChatPage';
 import AdminApp from './admin/AdminApp';
 import NotificationModal from './components/NotificationModal';
-import ChillBackground from './components/ChillBackground/ChillBackground';
-
-function UserLayout() {
-  const location = useLocation();
-
-  return (
-    <div className="page">
-      <ChillBackground />
-      <Navbar />
-      <div key={location.pathname} className="page-transition-container">
-        <Routes location={location}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/explore" element={<ExplorePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forum" element={<ForumPage />} />
-          <Route path="/forum/:id" element={<ForumPostPage />} />
-          <Route path="/quiz/:id" element={<QuizPlayPage />} />
-
-          <Route path="/create" element={
-            <ProtectedRoute><CreatePage /></ProtectedRoute>
-          } />
-          <Route path="/profile" element={
-            <ProtectedRoute><ProfilePage /></ProtectedRoute>
-          } />
-
-          <Route path="*" element={
-            <main style={{
-              minHeight: 'calc(100vh - 64px)', display: 'flex',
-              flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: 16
-            }}>
-              <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>404</h2>
-              <p style={{ color: 'var(--text-secondary)' }}>Trang bạn tìm không tồn tại.</p>
-              <a href="/" className="btn btn-primary">Về trang chủ</a>
-            </main>
-          } />
-        </Routes>
-      </div>
-      <Footer />
-    </div>
-  );
-}
 
 function App() {
   return (
@@ -68,7 +26,49 @@ function App() {
           <Route path="/admin/*" element={<AdminApp />} />
 
           {/* ── User-facing routes ── */}
-          <Route path="/*" element={<UserLayout />} />
+          <Route path="/*" element={
+            <div className="page">
+              <Navbar />
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forum" element={<ForumPage />} />
+                <Route path="/forum/:id" element={<ForumPostPage />} />
+                <Route path="/quiz/:id" element={<QuizPlayPage />} />
+
+                <Route path="/create" element={
+                  <ProtectedRoute><CreatePage /></ProtectedRoute>
+                } />
+                <Route path="/profile" element={
+                  <ProtectedRoute><ProfilePage /></ProtectedRoute>
+                } />
+                <Route path="/profile/:userId" element={
+                  <ProtectedRoute><ProfilePage /></ProtectedRoute>
+                } />
+                <Route path="/chat" element={
+                  <ProtectedRoute><ChatPage /></ProtectedRoute>
+                } />
+                <Route path="/chat/:friendId" element={
+                  <ProtectedRoute><ChatPage /></ProtectedRoute>
+                } />
+
+                <Route path="*" element={
+                  <main style={{
+                    minHeight: 'calc(100vh - 64px)', display: 'flex',
+                    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    gap: 16
+                  }}>
+                    <h2 style={{ fontSize: '2rem', fontWeight: 700 }}>404</h2>
+                    <p style={{ color: 'var(--text-secondary)' }}>Trang bạn tìm không tồn tại.</p>
+                    <a href="/" className="btn btn-primary">Về trang chủ</a>
+                  </main>
+                } />
+              </Routes>
+              <Footer />
+            </div>
+          } />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

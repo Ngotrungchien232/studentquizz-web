@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User, ChevronDown, Bell, Heart, MessageSquare, Reply } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
+import { chatService } from '../../services/chatService';
 import type { Notification } from '../../types';
 import './Navbar.css';
 
@@ -12,6 +13,7 @@ const Navbar = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -26,21 +28,23 @@ const Navbar = () => {
     { to: '/forum', label: 'Diễn đàn' },
   ];
 
-  // Fetch unread count and set up polling every 30s
+  // Fetch unread count and set up polling every 10s
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
-    const fetchUnreadCount = async () => {
+    const fetchUnreadCounts = async () => {
       try {
         const count = await notificationService.getUnreadCount();
         setUnreadCount(count);
+        const chatUnread = await chatService.getUnreadCount();
+        setUnreadChatCount(chatUnread.count);
       } catch (err) {
-        console.error('Lỗi khi lấy số lượng thông báo:', err);
+        console.error('Lỗi khi lấy số lượng thông báo/tin nhắn:', err);
       }
     };
 
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 10000);
     return () => clearInterval(interval);
   }, [isAuthenticated, user]);
 
@@ -174,6 +178,21 @@ const Navbar = () => {
         <div className="navbar__auth">
           {isAuthenticated && user ? (
             <>
+              {/* Chat Button */}
+              <Link 
+                to="/chat" 
+                className={`navbar__notification-btn ${location.pathname.startsWith('/chat') ? 'active' : ''}`}
+                aria-label="Tin nhắn"
+                style={{ marginRight: '8px' }}
+              >
+                <MessageSquare size={20} />
+                {unreadChatCount > 0 && (
+                  <span className="navbar__notification-badge">
+                    {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                  </span>
+                )}
+              </Link>
+
               {/* Notification Bell */}
               <div className="navbar__notification-container" ref={notificationRef}>
                 <button 
@@ -240,7 +259,11 @@ const Navbar = () => {
               {/* User Dropdown */}
               <div className="navbar__user" onClick={() => { setUserDropdown(!userDropdown); setShowNotifications(false); }} ref={userMenuRef}>
                 <div className="navbar__user-avatar">
-                  {getInitials(user.name)}
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    getInitials(user.name)
+                  )}
                 </div>
                 <span className="navbar__user-name">{user.name.split(' ').pop()}</span>
                 <ChevronDown size={14} className={`navbar__chevron ${userDropdown ? 'open' : ''}`} />
@@ -248,7 +271,13 @@ const Navbar = () => {
                 {userDropdown && (
                   <div className="navbar__dropdown">
                     <div className="navbar__dropdown-header">
-                      <div className="navbar__dropdown-avatar">{getInitials(user.name)}</div>
+                      <div className="navbar__dropdown-avatar">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          getInitials(user.name)
+                        )}
+                      </div>
                       <div>
                         <div className="navbar__dropdown-name">{user.name}</div>
                         <div className="navbar__dropdown-email">{user.email}</div>

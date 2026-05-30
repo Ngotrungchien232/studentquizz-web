@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { quizService, forumService } from '../services/quizService';
+import { chatService } from '../services/chatService';
+import { useAuth } from '../context/AuthContext';
 import type { UserProfile } from '../services/userService';
 import AppealModal from '../components/AppealModal';
 import './ProfilePage.css';
@@ -14,18 +16,54 @@ type AppealTarget = {
 };
 
 const ProfilePage: React.FC = () => {
+  const { userId } = useParams<{ userId?: string }>();
+  const navigate = useNavigate();
+  const { user: currentUser, updateUser } = useAuth();
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [appealTarget, setAppealTarget] = useState<AppealTarget | null>(null);
   const [appealSuccess, setAppealSuccess] = useState('');
 
+  // Friendship state
+  const [friendshipStatus, setFriendshipStatus] = useState<string>('NONE'); // SELF, NONE, ACCEPTED, PENDING_SENT, PENDING_RECEIVED
+  const [friendActionLoading, setFriendActionLoading] = useState(false);
+
+  // Edit profile state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  const isOwnProfile = !userId || parseInt(userId, 10) === currentUser?.id;
+
+  const getInitials = (name: string) =>
+    name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
   const refreshProfile = async () => {
-    const data = await userService.getMyProfile();
-    setProfile(data);
+    try {
+      if (isOwnProfile) {
+        const data = await userService.getMyProfile();
+        setProfile(data);
+        setFriendshipStatus('SELF');
+      } else {
+        const idNum = parseInt(userId!, 10);
+        const data = await userService.getUserProfile(idNum);
+        setProfile(data);
+        const statusRes = await chatService.getFriendshipStatus(idNum);
+        setFriendshipStatus(statusRes.status);
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải hồ sơ:', error);
+    }
   };
 
   useEffect(() => {
     const fetchProfile = async () => {
+      setLoading(true);
       try {
         await refreshProfile();
       } catch (error) {
@@ -35,7 +73,89 @@ const ProfilePage: React.FC = () => {
       }
     };
     fetchProfile();
-  }, []);
+  }, [userId]);
+
+  const handleFriendAction = async (action: 'request' | 'accept' | 'decline' | 'remove') => {
+    if (!profile || isOwnProfile) return;
+    try {
+      setFriendActionLoading(true);
+      if (action === 'request') {
+        await chatService.sendRequest(profile.id);
+      } else if (action === 'accept') {
+        await chatService.acceptRequest(profile.id);
+      } else if (action === 'decline') {
+        await chatService.declineRequest(profile.id);
+      } else if (action === 'remove') {
+        if (window.confirm('Bạn có chắc chắn muốn hủy kết bạn không?')) {
+          await chatService.removeFriend(profile.id);
+        } else {
+          return;
+        }
+      }
+      // Refresh status and list after action
+      await refreshProfile();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện kết bạn.');
+    } finally {
+      setFriendActionLoading(false);
+    }
+  };
+
+  const handleOpenEdit = () => {
+    if (!profile) return;
+    setEditName(profile.name);
+    setEditAvatar(profile.avatar || '');
+    setAvatarPreview(profile.avatar || '');
+    setEditPassword('');
+    setAvatarFile(null);
+    setShowEditModal(true);
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleUpdateProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+
+    try {
+      setUpdatingProfile(true);
+      let finalAvatarUrl = editAvatar;
+
+      if (avatarFile) {
+        const uploadRes = await forumService.uploadAttachment(avatarFile);
+        finalAvatarUrl = uploadRes.url;
+      }
+
+      const updated = await userService.updateProfile({
+        name: editName,
+        password: editPassword || undefined,
+        avatar: finalAvatarUrl
+      });
+
+      setProfile(updated);
+      updateUser({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        avatar: updated.avatar
+      });
+
+      setShowEditModal(false);
+      setAppealSuccess('Cập nhật hồ sơ thành công!');
+      setTimeout(() => setAppealSuccess(''), 3000);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Không thể cập nhật hồ sơ.');
+    } finally {
+      setUpdatingProfile(false);
+    }
+  };
 
   const handleAppealSubmit = async (message: string) => {
     if (!appealTarget) return;
@@ -72,12 +192,76 @@ const ProfilePage: React.FC = () => {
         <div className="profile-alert profile-alert--success">{appealSuccess}</div>
       )}
 
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="profile-modal-backdrop">
+          <div className="profile-modal">
+            <div className="profile-modal-header">
+              <h3>Chỉnh sửa thông tin cá nhân</h3>
+              <button className="profile-modal-close" onClick={() => setShowEditModal(false)}>&times;</button>
+            </div>
+            <form onSubmit={handleUpdateProfileSubmit} className="profile-modal-form">
+              <div className="profile-modal-avatar-section">
+                <div className="profile-modal-avatar-preview">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar Preview" />
+                  ) : (
+                    <div className="profile-avatar-placeholder">
+                      {getInitials(editName)}
+                    </div>
+                  )}
+                </div>
+                <label className="profile-modal-avatar-btn">
+                  Chọn ảnh đại diện
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
+                </label>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.9rem' }}>Tên hiển thị</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--card-border)', borderRadius: '8px' }}
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nhập tên hiển thị"
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.9rem' }}>Mật khẩu mới (bỏ trống nếu không đổi)</label>
+                <input
+                  type="password"
+                  className="form-control"
+                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--card-border)', borderRadius: '8px' }}
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                  minLength={6}
+                />
+              </div>
+
+              <div className="profile-modal-footer">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowEditModal(false)} disabled={updatingProfile}>
+                  Hủy
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={updatingProfile || !editName.trim()}>
+                  {updatingProfile ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="profile-header">
         {profile.avatar ? (
           <img src={profile.avatar} alt={profile.name} className="profile-avatar" />
         ) : (
           <div className="profile-avatar-placeholder">
-            {profile.name.charAt(0).toUpperCase()}
+            {getInitials(profile.name)}
           </div>
         )}
         <div className="profile-info">
@@ -94,10 +278,76 @@ const ProfilePage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Dynamic Friend Actions Area */}
+        <div className="profile-actions">
+          {friendshipStatus === 'SELF' && (
+            <button className="btn btn-outline" onClick={handleOpenEdit}>
+              ⚙️ Chỉnh sửa thông tin
+            </button>
+          )}
+
+          {friendshipStatus === 'NONE' && (
+            <button 
+              className="btn btn-primary" 
+              onClick={() => handleFriendAction('request')}
+              disabled={friendActionLoading}
+            >
+              {friendActionLoading ? 'Đang xử lý...' : '➕ Kết bạn'}
+            </button>
+          )}
+
+          {friendshipStatus === 'PENDING_SENT' && (
+            <button 
+              className="btn btn-outline btn-danger" 
+              onClick={() => handleFriendAction('decline')}
+              disabled={friendActionLoading}
+            >
+              {friendActionLoading ? 'Đang xử lý...' : '❌ Hủy lời mời'}
+            </button>
+          )}
+
+          {friendshipStatus === 'PENDING_RECEIVED' && (
+            <div className="profile-actions__button-group">
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => handleFriendAction('accept')}
+                disabled={friendActionLoading}
+              >
+                {friendActionLoading ? '...' : '✅ Đồng ý'}
+              </button>
+              <button 
+                className="btn btn-outline btn-danger btn-sm" 
+                onClick={() => handleFriendAction('decline')}
+                disabled={friendActionLoading}
+              >
+                {friendActionLoading ? '...' : 'Từ chối'}
+              </button>
+            </div>
+          )}
+
+          {friendshipStatus === 'ACCEPTED' && (
+            <div className="profile-actions__button-group">
+              <button 
+                className="btn btn-primary" 
+                onClick={() => navigate(`/chat/${profile.id}`)}
+              >
+                💬 Nhắn tin
+              </button>
+              <button 
+                className="btn btn-outline btn-danger" 
+                onClick={() => handleFriendAction('remove')}
+                disabled={friendActionLoading}
+              >
+                {friendActionLoading ? '...' : 'Hủy kết bạn'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="profile-content">
-        <h2>Quiz của tôi</h2>
+        <h2>{isOwnProfile ? 'Quiz của tôi' : `Quiz của ${profile.name}`}</h2>
         {profile.quizzes && profile.quizzes.length > 0 ? (
           <div className="quizzes-grid">
             {profile.quizzes.map((quiz) => {
@@ -113,12 +363,14 @@ const ProfilePage: React.FC = () => {
                 <Link to={`/quiz/${quiz.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span className="category-badge">{quiz.category}</span>
-                    <span style={{
-                      padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
-                      background: st.bg, color: st.color
-                    }}>
-                      {st.label}
-                    </span>
+                    {isOwnProfile && (
+                      <span style={{
+                        padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
+                        background: st.bg, color: st.color
+                      }}>
+                        {st.label}
+                      </span>
+                    )}
                   </div>
                   <h3>{quiz.title}</h3>
                   <div className="quiz-meta">
@@ -127,7 +379,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </Link>
 
-                {quiz.status === 'PENDING' && quiz.appealMessage && (
+                {isOwnProfile && quiz.status === 'PENDING' && quiz.appealMessage && (
                   <div className="profile-moderation-box profile-moderation-box--pending">
                     <strong>Đã gửi khiếu nại</strong>
                     <p>{quiz.appealMessage}</p>
@@ -135,7 +387,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                 )}
 
-                {quiz.status === 'REJECTED' && (
+                {isOwnProfile && quiz.status === 'REJECTED' && (
                   <div className="profile-moderation-box profile-moderation-box--rejected">
                     <strong>Lý do admin từ chối:</strong>
                     <p>{quiz.rejectReason || 'Không có lý do cụ thể.'}</p>
@@ -159,14 +411,16 @@ const ProfilePage: React.FC = () => {
           </div>
         ) : (
           <div className="empty-state">
-            <p>Bạn chưa tạo bài quiz nào.</p>
-            <Link to="/create" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Tạo Quiz Ngay</Link>
+            <p>{isOwnProfile ? 'Bạn chưa tạo bài quiz nào.' : 'Người dùng này chưa công khai bài quiz nào.'}</p>
+            {isOwnProfile && (
+              <Link to="/create" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Tạo Quiz Ngay</Link>
+            )}
           </div>
         )}
       </div>
 
       <div className="profile-content" style={{ marginTop: '30px' }}>
-        <h2>Bài viết diễn đàn của tôi</h2>
+        <h2>{isOwnProfile ? 'Bài viết diễn đàn của tôi' : `Bài viết của ${profile.name}`}</h2>
         {profile.posts && profile.posts.length > 0 ? (
           <div className="quizzes-grid">
             {profile.posts.map((post) => {
@@ -182,12 +436,14 @@ const ProfilePage: React.FC = () => {
                 <Link to={`/forum/${post.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span className="category-badge" style={{ background: '#eef2ff', color: '#4f46e5' }}>Diễn đàn</span>
-                    <span style={{
-                      padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
-                      background: st.bg, color: st.color
-                    }}>
-                      {st.label}
-                    </span>
+                    {isOwnProfile && (
+                      <span style={{
+                        padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
+                        background: st.bg, color: st.color
+                      }}>
+                        {st.label}
+                      </span>
+                    )}
                   </div>
                   <h3>{post.title}</h3>
                   <div className="quiz-meta">
@@ -196,7 +452,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </Link>
 
-                {post.status === 'PENDING' && post.appealMessage && (
+                {isOwnProfile && post.status === 'PENDING' && post.appealMessage && (
                   <div className="profile-moderation-box profile-moderation-box--pending">
                     <strong>Đã gửi khiếu nại</strong>
                     <p>{post.appealMessage}</p>
@@ -204,7 +460,7 @@ const ProfilePage: React.FC = () => {
                   </div>
                 )}
 
-                {post.status === 'REJECTED' && (
+                {isOwnProfile && post.status === 'REJECTED' && (
                   <div className="profile-moderation-box profile-moderation-box--rejected">
                     <strong>Lý do admin từ chối:</strong>
                     <p>{post.rejectReason || 'Không có lý do cụ thể.'}</p>
@@ -228,8 +484,10 @@ const ProfilePage: React.FC = () => {
           </div>
         ) : (
           <div className="empty-state">
-            <p>Bạn chưa đăng bài viết nào trên diễn đàn.</p>
-            <Link to="/forum" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Khám phá Diễn đàn</Link>
+            <p>{isOwnProfile ? 'Bạn chưa đăng bài viết nào trên diễn đàn.' : 'Người dùng này chưa đăng bài viết nào.'}</p>
+            {isOwnProfile && (
+              <Link to="/forum" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Khám phá Diễn đàn</Link>
+            )}
           </div>
         )}
       </div>

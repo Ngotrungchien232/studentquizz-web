@@ -104,7 +104,7 @@ export interface QuizComment {
 
 export interface Notification {
   id: number;
-  type: 'LIKE' | 'COMMENT' | 'REPLY' | 'QUIZ_COMMENT' | 'QUIZ_REPLY';
+  type: 'LIKE' | 'COMMENT' | 'REPLY' | 'QUIZ_COMMENT' | 'QUIZ_REPLY' | 'FRIEND_REQUEST' | 'FRIEND_ACCEPT';
   postId?: number;
   quizId?: number;
   message: string;
@@ -115,4 +115,29 @@ export interface Notification {
     name: string;
     avatar?: string;
   };
+}
+
+export interface FriendshipStatus {
+  status: 'SELF' | 'NONE' | 'ACCEPTED' | 'PENDING_SENT' | 'PENDING_RECEIVED';
+}
+
+export interface ChatMessage {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  content: string;
+  createdAt: string;
+  isRead: boolean;
+}
+
+export interface Conversation {
+  friend: {
+    id: number;
+    name: string;
+    avatar?: string;
+  };
+  lastMessage: string;
+  lastMessageSenderId: number;
+  lastMessageTime: string;
+  unreadCount: number;
 }

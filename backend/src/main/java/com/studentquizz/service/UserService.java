@@ -3,6 +3,7 @@ package com.studentquizz.service;
 import com.studentquizz.dto.AuthorDto;
 import com.studentquizz.dto.QuizDto;
 import com.studentquizz.dto.UserProfileResponse;
+import com.studentquizz.dto.UpdateProfileRequest;
 import com.studentquizz.model.Quiz;
 import com.studentquizz.model.User;
 import com.studentquizz.repository.ForumPostRepository;
@@ -10,6 +11,7 @@ import com.studentquizz.repository.QuizRepository;
 import com.studentquizz.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +25,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final QuizRepository quizRepository;
     private final ForumPostRepository forumPostRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserProfileResponse getMyProfile() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -80,4 +83,61 @@ public class UserService {
                 .build();
     }
 
+    public UserProfileResponse getUserProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findByEmail(currentEmail).orElse(null);
+
+        boolean isSelfOrAdmin = currentUser != null && (currentUser.getId().equals(userId) || "ADMIN".equals(currentUser.getRole()));
+
+        List<Quiz> quizzes;
+        List<com.studentquizz.model.ForumPost> posts;
+
+        if (isSelfOrAdmin) {
+            quizzes = quizRepository.findByAuthorIdOrderByCreatedAtDesc(userId);
+            posts = forumPostRepository.findByAuthorIdOrderByCreatedAtDesc(userId);
+        } else {
+            quizzes = quizRepository.findByAuthorIdAndStatusOrderByCreatedAtDesc(userId, "APPROVED");
+            posts = forumPostRepository.findByAuthorIdAndStatusOrderByCreatedAtDesc(userId, "APPROVED");
+        }
+
+        List<QuizDto> quizDtos = quizzes.stream().map(this::toQuizDto).collect(Collectors.toList());
+        List<com.studentquizz.dto.ForumDto.PostResponse> postDtos = posts.stream().map(this::toPostDto).collect(Collectors.toList());
+
+        return UserProfileResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .avatar(user.getAvatar())
+                .totalQuizzes(quizDtos.size())
+                .totalPosts(postDtos.size())
+                .quizzes(quizDtos)
+                .posts(postDtos)
+                .build();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public UserProfileResponse updateProfile(UpdateProfileRequest request) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (request.getName() != null && !request.getName().isBlank()) {
+            user.setName(request.getName());
+        }
+        if (request.getAvatar() != null) {
+            user.setAvatar(request.getAvatar());
+        }
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            if (request.getPassword().length() < 6) {
+                throw new RuntimeException("Mật khẩu mới phải từ 6 ký tự trở lên");
+            }
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+
+        userRepository.save(user);
+        return getMyProfile();
+    }
 }
