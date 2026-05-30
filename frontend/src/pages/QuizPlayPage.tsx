@@ -85,10 +85,13 @@ const QuizPlayPage = () => {
 
   useEffect(() => {
     if (!isFinished || playRecorded || !id) return;
-    quizService.recordPlay(Number(id))
+    quizService.recordAttempt(Number(id), score, questions.length)
       .then(() => setPlayRecorded(true))
-      .catch(() => setPlayRecorded(true));
-  }, [isFinished, playRecorded, id]);
+      .catch((err) => {
+        console.error('Lỗi khi lưu lịch sử:', err);
+        setPlayRecorded(true);
+      });
+  }, [isFinished, playRecorded, id, score, questions.length]);
 
   const handleStartQuiz = () => {
     if (!quiz) return;

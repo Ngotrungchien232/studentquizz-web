@@ -56,6 +56,16 @@ export const quizService = {
     const { data } = await api.post(`/quizzes/${quizId}/comments`, { content, parentId });
     return data;
   },
+
+  recordAttempt: async (quizId: number, score: number, totalQuestions: number): Promise<any> => {
+    const { data } = await api.post(`/quizzes/${quizId}/attempt`, { score, totalQuestions });
+    return data;
+  },
+
+  getMyAttempts: async (): Promise<any[]> => {
+    const { data } = await api.get('/quizzes/attempts/my');
+    return data;
+  },
 };
 
 /* ─── Auth Service ─── */

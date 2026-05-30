@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, ThumbsUp, MessageCircle, Search, TrendingUp, Clock, Tag, Paperclip, Link2 } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,7 @@ const getInitials = (name: string) =>
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
 
 const ForumPage = () => {
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [filtered, setFiltered] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,7 +178,17 @@ const ForumPage = () => {
                     className="forum-post-card card"
                   >
                     {/* Author */}
-                    <div className="fpc-author">
+                    <div 
+                      className="fpc-author"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (post.author.id) {
+                          navigate(`/profile/${post.author.id}`);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <div
                         className="fpc-avatar"
                         style={{ background: AVATAR_COLORS[post.author.id % AVATAR_COLORS.length] }}
@@ -185,7 +196,7 @@ const ForumPage = () => {
                         {getInitials(post.author.name)}
                       </div>
                       <div className="fpc-meta">
-                        <span className="fpc-author-name">{post.author.name}</span>
+                        <span className="fpc-author-name" style={{ textDecoration: 'underline' }}>{post.author.name}</span>
                         <span className="fpc-time">{timeAgo(post.createdAt)}</span>
                       </div>
                     </div>

@@ -41,6 +41,15 @@ public class SampleDataService {
             entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS attachment_type VARCHAR(255)").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS link_url VARCHAR(255)").executeUpdate();
             
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'PENDING'").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS reject_reason TEXT").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE forum_posts ADD COLUMN IF NOT EXISTS appeal_message TEXT").executeUpdate();
+
+            entityManager.createNativeQuery("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'PENDING'").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS reject_reason TEXT").executeUpdate();
+            entityManager.createNativeQuery("ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS appeal_message TEXT").executeUpdate();
+
+            entityManager.createNativeQuery("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar VARCHAR(255)").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked BOOLEAN DEFAULT FALSE").executeUpdate();
             entityManager.createNativeQuery("ALTER TABLE users ADD COLUMN IF NOT EXISTS lock_reason TEXT").executeUpdate();
         } catch (Exception e) {

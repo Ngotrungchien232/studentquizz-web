@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CornerDownRight, Loader2, Send } from 'lucide-react';
 import type { ForumComment, QuizComment } from '../../types';
 import './CommentThread.css';
@@ -54,12 +55,22 @@ const CommentThread = ({
   return (
     <div className={`comment-thread ${depth > 0 ? 'comment-thread--nested' : ''}`}>
       <div className="comment-item">
-        <div className="comment-avatar" style={{ background: avatarColor }}>
+        <Link 
+          to={`/profile/${comment.author.id}`} 
+          className="comment-avatar" 
+          style={{ background: avatarColor, textDecoration: 'none', color: 'white' }}
+        >
           {getInitials(comment.author.name)}
-        </div>
+        </Link>
         <div className="comment-body">
           <div className="comment-header">
-            <span className="comment-author">{comment.author.name}</span>
+            <Link 
+              to={`/profile/${comment.author.id}`} 
+              className="comment-author" 
+              style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 600 }}
+            >
+              {comment.author.name}
+            </Link>
             {comment.replyToAuthorName && (
               <span className="comment-reply-to">
                 <CornerDownRight size={12} />

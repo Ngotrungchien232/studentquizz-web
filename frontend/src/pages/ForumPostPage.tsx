@@ -130,7 +130,11 @@ const ForumPostPage = () => {
 
         <div className="forum-post-layout">
           <article className="forum-post-article card">
-            <div className="fpa-author">
+            <Link 
+              to={`/profile/${post.author.id}`}
+              className="fpa-author" 
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
               <div
                 className="fpa-avatar"
                 style={{ background: AVATAR_COLORS[post.author.id % AVATAR_COLORS.length] }}
@@ -138,10 +142,10 @@ const ForumPostPage = () => {
                 {getInitials(post.author.name)}
               </div>
               <div>
-                <div className="fpa-name">{post.author.name}</div>
+                <div className="fpa-name" style={{ textDecoration: 'underline' }}>{post.author.name}</div>
                 <div className="fpa-time">{timeAgo(post.createdAt)}</div>
               </div>
-            </div>
+            </Link>
 
             {post.tags && post.tags.length > 0 && (
               <div className="fpa-tags">

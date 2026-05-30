@@ -37,6 +37,7 @@ const ProfilePage: React.FC = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [attempts, setAttempts] = useState<any[]>([]);
 
   const isOwnProfile = !userId || parseInt(userId, 10) === currentUser?.id;
 
@@ -49,6 +50,12 @@ const ProfilePage: React.FC = () => {
         const data = await userService.getMyProfile();
         setProfile(data);
         setFriendshipStatus('SELF');
+        try {
+          const attemptData = await quizService.getMyAttempts();
+          setAttempts(attemptData);
+        } catch (attemptErr) {
+          console.error('Lỗi khi tải lịch sử quiz:', attemptErr);
+        }
       } else {
         const idNum = parseInt(userId!, 10);
         const data = await userService.getUserProfile(idNum);
@@ -491,6 +498,61 @@ const ProfilePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {isOwnProfile && (
+        <div className="profile-content" style={{ marginTop: '40px' }}>
+          <h2>Lịch sử làm bài Quiz và Điểm số</h2>
+          {attempts && attempts.length > 0 ? (
+            <div className="attempts-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              {attempts.map((att) => {
+                const percent = att.totalQuestions > 0 ? (att.score / att.totalQuestions) * 100 : 0;
+                let scoreColor = '#EF4444'; // Red
+                let scoreBg = '#FEE2E2';
+                if (percent >= 80) {
+                  scoreColor = '#10B981'; // Green
+                  scoreBg = '#D1FAE5';
+                } else if (percent >= 50) {
+                  scoreColor = '#F59E0B'; // Orange
+                  scoreBg = '#FEF3C7';
+                }
+
+                return (
+                  <div key={`attempt-${att.id}`} className="attempt-card card" style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px',
+                    background: 'white', borderRadius: '12px', border: '1px solid var(--card-border)'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <Link to={`/quiz/${att.quizId}`} style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', textDecoration: 'none' }} className="attempt-title-hover">
+                        {att.quizTitle}
+                      </Link>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="category-badge" style={{ padding: '2px 8px', fontSize: '0.75rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '12px', fontWeight: 600 }}>{att.quizCategory}</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Đã làm: {new Date(att.completedAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      padding: '8px 16px', borderRadius: '12px', background: scoreBg, color: scoreColor, fontWeight: 800, minWidth: '85px'
+                    }}>
+                      <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{att.score}/{att.totalQuestions}</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', marginTop: '2px' }}>
+                        {percent.toFixed(0)}% Đúng
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <p>Bạn chưa hoàn thành bài kiểm tra nào.</p>
+              <Link to="/explore" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Luyện tập ngay</Link>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

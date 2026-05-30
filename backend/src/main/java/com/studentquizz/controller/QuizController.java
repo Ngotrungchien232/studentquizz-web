@@ -89,4 +89,18 @@ public class QuizController {
             @RequestBody com.studentquizz.dto.ForumDto.CreateCommentRequest req) {
         return ResponseEntity.ok(quizService.addComment(id, req));
     }
+
+    @PostMapping("/{id}/attempt")
+    public ResponseEntity<com.studentquizz.dto.QuizAttemptResponse> recordAttempt(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        int score = ((Number) body.get("score")).intValue();
+        int totalQuestions = ((Number) body.get("totalQuestions")).intValue();
+        return ResponseEntity.ok(quizService.recordAttempt(id, score, totalQuestions));
+    }
+
+    @GetMapping("/attempts/my")
+    public ResponseEntity<List<com.studentquizz.dto.QuizAttemptResponse>> getMyAttempts() {
+        return ResponseEntity.ok(quizService.getMyAttempts());
+    }
 }

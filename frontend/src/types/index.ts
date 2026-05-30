@@ -141,3 +141,13 @@ export interface Conversation {
   lastMessageTime: string;
   unreadCount: number;
 }
+
+export interface QuizAttempt {
+  id: number;
+  quizId: number;
+  quizTitle: string;
+  quizCategory: string;
+  score: number;
+  totalQuestions: number;
+  completedAt: string;
+}

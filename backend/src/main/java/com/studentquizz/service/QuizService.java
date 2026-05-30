@@ -8,9 +8,12 @@ import com.studentquizz.model.Question;
 import com.studentquizz.model.Quiz;
 import com.studentquizz.model.User;
 import com.studentquizz.model.QuizComment;
+import com.studentquizz.model.QuizAttempt;
 import com.studentquizz.repository.QuizCommentRepository;
 import com.studentquizz.repository.QuizRepository;
 import com.studentquizz.repository.UserRepository;
+import com.studentquizz.repository.QuizAttemptRepository;
+import com.studentquizz.dto.QuizAttemptResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,6 +39,7 @@ public class QuizService {
     private final AiQuizGeneratorService aiQuizGeneratorService;
     private final QuizCommentRepository quizCommentRepository;
     private final NotificationService notificationService;
+    private final QuizAttemptRepository quizAttemptRepository;
 
     public List<QuizDto> getFeatured() {
         return quizRepository.findByFeaturedTrueAndStatusOrderByPlayCountDesc("APPROVED")
@@ -327,6 +331,48 @@ public class QuizService {
                 .id(user.getId())
                 .name(user.getName())
                 .avatar(user.getAvatar())
+                .build();
+    }
+
+    @Transactional
+    public QuizAttemptResponse recordAttempt(Long quizId, int score, int totalQuestions) {
+        User user = getCurrentUser();
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found: " + quizId));
+
+        QuizAttempt attempt = QuizAttempt.builder()
+                .user(user)
+                .quiz(quiz)
+                .score(score)
+                .totalQuestions(totalQuestions)
+                .build();
+
+        attempt = quizAttemptRepository.save(attempt);
+
+        // Increment play count
+        quiz.setPlayCount(quiz.getPlayCount() + 1);
+        quizRepository.save(quiz);
+
+        return toAttemptResponse(attempt);
+    }
+
+    public List<QuizAttemptResponse> getMyAttempts() {
+        User user = getCurrentUser();
+        return quizAttemptRepository.findByUserIdOrderByCompletedAtDesc(user.getId())
+                .stream()
+                .map(this::toAttemptResponse)
+                .collect(Collectors.toList());
+    }
+
+    private QuizAttemptResponse toAttemptResponse(QuizAttempt attempt) {
+        return QuizAttemptResponse.builder()
+                .id(attempt.getId())
+                .quizId(attempt.getQuiz().getId())
+                .quizTitle(attempt.getQuiz().getTitle())
+                .quizCategory(attempt.getQuiz().getCategory())
+                .score(attempt.getScore())
+                .totalQuestions(attempt.getTotalQuestions())
+                .completedAt(attempt.getCompletedAt())
                 .build();
     }
 }

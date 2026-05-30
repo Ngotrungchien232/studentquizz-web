@@ -51,6 +51,9 @@ public class UserService {
     }
 
     private QuizDto toQuizDto(Quiz quiz) {
+        AuthorDto authorDto = quiz.getAuthor() != null 
+                ? AuthorDto.builder().id(quiz.getAuthor().getId()).name(quiz.getAuthor().getName()).build() 
+                : AuthorDto.builder().id(0L).name("Unknown").build();
         return QuizDto.builder()
                 .id(quiz.getId())
                 .title(quiz.getTitle())
@@ -63,16 +66,19 @@ public class UserService {
                 .rejectReason(quiz.getRejectReason())
                 .appealMessage(quiz.getAppealMessage())
                 // Không map questions ở danh sách để tối ưu
-                .author(AuthorDto.builder().id(quiz.getAuthor().getId()).name(quiz.getAuthor().getName()).build())
+                .author(authorDto)
                 .build();
     }
 
     private com.studentquizz.dto.ForumDto.PostResponse toPostDto(com.studentquizz.model.ForumPost post) {
+        AuthorDto authorDto = post.getAuthor() != null 
+                ? AuthorDto.builder().id(post.getAuthor().getId()).name(post.getAuthor().getName()).build() 
+                : AuthorDto.builder().id(0L).name("Unknown").build();
         return com.studentquizz.dto.ForumDto.PostResponse.builder()
                 .id(post.getId())
                 .title(post.getTitle())
                 .content(post.getContent())
-                .author(AuthorDto.builder().id(post.getAuthor().getId()).name(post.getAuthor().getName()).build())
+                .author(authorDto)
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
                 .tags(post.getTags() != null ? new java.util.ArrayList<>(post.getTags()) : new java.util.ArrayList<>())
