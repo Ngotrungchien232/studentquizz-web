@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
 public class ChatMessageService {
 
     private final ChatMessageRepository chatMessageRepository;
@@ -36,26 +35,35 @@ public class ChatMessageService {
     @Transactional
     public ChatDto.MessageResponse sendMessage(ChatDto.MessageRequest request) {
         User sender = getCurrentUser();
+        
+        if (request.getRecipientId() == null) {
+            throw new RuntimeException("Thiếu thông tin người nhận.");
+        }
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new RuntimeException("Nội dung tin nhắn không được để trống.");
+        }
+        
         User recipient = userRepository.findById(request.getRecipientId())
                 .orElseThrow(() -> new RuntimeException("Người nhận không tồn tại."));
 
+        // Kiểm tra trạng thái kết bạn trong một transaction
         String status = friendshipService.getFriendshipStatus(request.getRecipientId());
         if (!"ACCEPTED".equals(status)) {
-            throw new RuntimeException("Bạn chỉ có thể nhắn tin cho những người đã kết bạn.");
+            throw new RuntimeException("Bạn chỉ có thể nhắn tin cho những người đã kết bạn với bạn.");
         }
 
         ChatMessage message = ChatMessage.builder()
                 .sender(sender)
                 .recipient(recipient)
-                .content(request.getContent())
+                .content(request.getContent().trim())
                 .isRead(false)
                 .build();
 
         message = chatMessageRepository.save(message);
-
         return toResponse(message);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatDto.MessageResponse> getChatHistory(Long friendId) {
         User user = getCurrentUser();
         return chatMessageRepository.findChatHistory(user.getId(), friendId)
@@ -68,32 +76,38 @@ public class ChatMessageService {
         chatMessageRepository.markAsRead(user.getId(), friendId);
     }
 
+    @Transactional(readOnly = true)
     public List<ChatDto.ConversationResponse> getConversationsList() {
         User user = getCurrentUser();
         List<AuthorDto> friends = friendshipService.getFriendsList();
         List<ChatDto.ConversationResponse> list = new ArrayList<>();
 
         for (AuthorDto friend : friends) {
-            ChatMessage lastMsg = chatMessageRepository.findLastMessageBetween(user.getId(), friend.getId());
-            if (lastMsg == null) {
-                continue;
+            try {
+                ChatMessage lastMsg = chatMessageRepository.findLastMessageBetween(user.getId(), friend.getId());
+                if (lastMsg == null) {
+                    continue;
+                }
+
+                int unread = chatMessageRepository.findUnreadMessages(user.getId(), friend.getId()).size();
+
+                list.add(ChatDto.ConversationResponse.builder()
+                        .friend(friend)
+                        .lastMessage(lastMsg.getContent())
+                        .lastMessageSenderId(lastMsg.getSender().getId())
+                        .lastMessageTime(lastMsg.getCreatedAt())
+                        .unreadCount(unread)
+                        .build());
+            } catch (Exception e) {
+                log.warn("Không thể tải hội thoại với bạn bè id={}: {}", friend.getId(), e.getMessage());
             }
-
-            int unread = chatMessageRepository.findUnreadMessages(user.getId(), friend.getId()).size();
-
-            list.add(ChatDto.ConversationResponse.builder()
-                    .friend(friend)
-                    .lastMessage(lastMsg.getContent())
-                    .lastMessageSenderId(lastMsg.getSender().getId())
-                    .lastMessageTime(lastMsg.getCreatedAt())
-                    .unreadCount(unread)
-                    .build());
         }
 
         list.sort((c1, c2) -> c2.getLastMessageTime().compareTo(c1.getLastMessageTime()));
         return list;
     }
 
+    @Transactional(readOnly = true)
     public long getTotalUnreadCount() {
         User user = getCurrentUser();
         return chatMessageRepository.countTotalUnreadMessages(user.getId());

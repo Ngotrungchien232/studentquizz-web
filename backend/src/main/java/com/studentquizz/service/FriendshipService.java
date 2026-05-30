@@ -56,14 +56,14 @@ public class FriendshipService {
                 .build();
         friendshipRepository.save(friendship);
 
-        // Tạo thông báo
-        notificationService.createNotification(receiver, requester, "FRIEND_REQUEST", null, null, 
+        notificationService.createNotification(receiver, requester, "FRIEND_REQUEST", null, null,
                 requester.getName() + " đã gửi cho bạn lời mời kết bạn.");
     }
 
     @Transactional
     public void acceptFriendRequest(Long friendId) {
         User receiver = getCurrentUser();
+        // friendId là ID của người đã gửi lời mời (requester)
         Friendship friendship = friendshipRepository.findByRequesterIdAndReceiverId(friendId, receiver.getId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lời mời kết bạn."));
 
@@ -74,19 +74,21 @@ public class FriendshipService {
         friendship.setStatus("ACCEPTED");
         friendshipRepository.save(friendship);
 
-        // Thông báo cho người gửi lời mời
-        notificationService.createNotification(friendship.getRequester(), receiver, "FRIEND_ACCEPT", null, null, 
+        notificationService.createNotification(friendship.getRequester(), receiver, "FRIEND_ACCEPT", null, null,
                 receiver.getName() + " đã đồng ý lời mời kết bạn.");
     }
 
     @Transactional
     public void declineFriendRequest(Long friendId) {
         User user = getCurrentUser();
-        Friendship friendship = friendshipRepository.findRelation(user.getId(), friendId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy lời mời kết bạn."));
-
+        // Tìm relation theo cả hai chiều
+        Optional<Friendship> relationOpt = friendshipRepository.findRelation(user.getId(), friendId);
+        if (relationOpt.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy lời mời kết bạn.");
+        }
+        Friendship friendship = relationOpt.get();
         if (!"PENDING".equals(friendship.getStatus())) {
-            throw new RuntimeException("Không thể từ chối lời mời đã được đồng ý.");
+            throw new RuntimeException("Không thể từ chối lời mời đã được đồng ý. Hãy dùng 'Hủy kết bạn'.");
         }
         friendshipRepository.delete(friendship);
     }
@@ -103,6 +105,7 @@ public class FriendshipService {
         friendshipRepository.delete(friendship);
     }
 
+    @Transactional(readOnly = true)
     public List<AuthorDto> getFriendsList() {
         User user = getCurrentUser();
         List<Friendship> friendships = friendshipRepository.findFriends(user.getId());
@@ -116,6 +119,7 @@ public class FriendshipService {
         }).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<AuthorDto> getPendingRequests() {
         User user = getCurrentUser();
         List<Friendship> pending = friendshipRepository.findPendingRequests(user.getId());
@@ -129,6 +133,7 @@ public class FriendshipService {
         }).collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public String getFriendshipStatus(Long friendId) {
         User user = getCurrentUser();
         if (user.getId().equals(friendId)) {
@@ -142,6 +147,7 @@ public class FriendshipService {
         if ("ACCEPTED".equals(f.getStatus())) {
             return "ACCEPTED";
         }
+        // So sánh ID requester để tránh lazy loading issue
         if (f.getRequester().getId().equals(user.getId())) {
             return "PENDING_SENT";
         } else {
