@@ -49,7 +49,7 @@ body {
   font-size: 16px;
   line-height: 1.6;
   color: var(--text-primary);
-  background-image: url('./assets/bg.jpg');
+  background-image: url('./assets/bg.png');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
