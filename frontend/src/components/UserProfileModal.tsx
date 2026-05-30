@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, MessageSquare, UserPlus, UserCheck, UserMinus, Loader2 } from 'lucide-react';
+import { X, MessageSquare, UserPlus, UserCheck, UserMinus, Loader2, CheckCircle, BookOpen, FileText } from 'lucide-react';
 import { userService, type UserProfile } from '../services/userService';
 import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
@@ -17,9 +17,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [friendshipStatus, setFriendshipStatus] = useState<string>('NONE'); // SELF, NONE, ACCEPTED, PENDING_SENT, PENDING_RECEIVED
+  const [friendshipStatus, setFriendshipStatus] = useState<string>('NONE');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const isSelf = currentUser?.id === userId;
 
@@ -34,9 +35,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
         setProfile(data);
         setFriendshipStatus('SELF');
       } else {
-        const data = await userService.getUserProfile(userId);
+        const [data, statusRes] = await Promise.all([
+          userService.getUserProfile(userId),
+          chatService.getFriendshipStatus(userId),
+        ]);
         setProfile(data);
-        const statusRes = await chatService.getFriendshipStatus(userId);
         setFriendshipStatus(statusRes.status);
       }
     } catch (err) {
@@ -56,26 +59,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
       setActionLoading(true);
       if (action === 'request') {
         await chatService.sendRequest(profile.id);
+        setFriendshipStatus('PENDING_SENT');
+        setSuccessMsg('Đã gửi lời mời kết bạn!');
       } else if (action === 'accept') {
         await chatService.acceptRequest(profile.id);
+        setFriendshipStatus('ACCEPTED');
+        setSuccessMsg('Đã kết bạn thành công! Bạn có thể nhắn tin ngay bây giờ.');
       } else if (action === 'decline') {
         await chatService.declineRequest(profile.id);
+        setFriendshipStatus('NONE');
       } else if (action === 'remove') {
         if (window.confirm('Bạn có chắc chắn muốn hủy kết bạn không?')) {
           await chatService.removeFriend(profile.id);
+          setFriendshipStatus('NONE');
         } else {
           return;
         }
-      }
-      // Re-fetch status
-      if (action === 'remove') {
-        setFriendshipStatus('NONE');
-      } else if (action === 'request') {
-        setFriendshipStatus('PENDING_SENT');
-      } else if (action === 'accept') {
-        setFriendshipStatus('ACCEPTED');
-      } else if (action === 'decline') {
-        setFriendshipStatus('NONE');
       }
     } catch (err: any) {
       alert(err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện thao tác.');
@@ -89,120 +88,140 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
     navigate(`/chat/${userId}`);
   };
 
+  const avatarColor = profile ? AVATAR_COLORS[profile.id % AVATAR_COLORS.length] : AVATAR_COLORS[0];
+
   return (
-    <div className="user-modal-overlay" onClick={onClose}>
-      <div className="user-modal-box" onClick={(e) => e.stopPropagation()}>
-        <button className="user-modal-close" onClick={onClose} aria-label="Đóng">
-          <X size={18} />
+    <div className="upm-overlay" onClick={onClose}>
+      <div className="upm-box" onClick={(e) => e.stopPropagation()}>
+        {/* Close */}
+        <button className="upm-close" onClick={onClose} aria-label="Đóng">
+          <X size={16} />
         </button>
 
         {loading ? (
-          <div className="user-modal-loading">
-            <Loader2 className="spinner spin" size={32} />
+          <div className="upm-loading">
+            <Loader2 size={36} className="upm-spinner" />
             <p>Đang tải thông tin...</p>
           </div>
         ) : !profile ? (
-          <div className="user-modal-error">
-            <p>Không thể tải thông tin người dùng này.</p>
+          <div className="upm-error">
+            <p>Không thể tải thông tin người dùng.</p>
           </div>
         ) : (
-          <div className="user-modal-content">
-            {/* Header / Avatar */}
-            <div className="user-modal-profile-header">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt={profile.name} className="user-modal-avatar" />
-              ) : (
-                <div 
-                  className="user-modal-avatar-placeholder" 
-                  style={{ background: AVATAR_COLORS[profile.id % AVATAR_COLORS.length] }}
-                >
-                  {getInitials(profile.name)}
+          <>
+            {/* Header gradient banner */}
+            <div className="upm-banner" style={{ background: `linear-gradient(135deg, ${avatarColor}cc, ${avatarColor}66)` }} />
+
+            <div className="upm-body">
+              {/* Avatar */}
+              <div className="upm-avatar-wrap">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt={profile.name} className="upm-avatar-img" />
+                ) : (
+                  <div className="upm-avatar-placeholder" style={{ background: avatarColor }}>
+                    {getInitials(profile.name)}
+                  </div>
+                )}
+                {friendshipStatus === 'ACCEPTED' && (
+                  <div className="upm-friend-badge" title="Bạn bè">
+                    <UserCheck size={12} />
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <h2 className="upm-name">{profile.name}</h2>
+              <p className="upm-email">{profile.email}</p>
+
+              {/* Stats */}
+              <div className="upm-stats">
+                <div className="upm-stat">
+                  <BookOpen size={16} className="upm-stat-icon" />
+                  <span className="upm-stat-value">{profile.totalQuizzes}</span>
+                  <span className="upm-stat-label">Quiz đã tạo</span>
+                </div>
+                <div className="upm-stat-divider" />
+                <div className="upm-stat">
+                  <FileText size={16} className="upm-stat-icon" />
+                  <span className="upm-stat-value">{profile.totalPosts}</span>
+                  <span className="upm-stat-label">Bài đăng</span>
+                </div>
+              </div>
+
+              {/* Success message */}
+              {successMsg && (
+                <div className="upm-success-msg">
+                  <CheckCircle size={16} />
+                  {successMsg}
                 </div>
               )}
-              <h2 className="user-modal-name">{profile.name}</h2>
-              <p className="user-modal-email">{profile.email}</p>
-            </div>
 
-            {/* Stats */}
-            <div className="user-modal-stats">
-              <div className="user-modal-stat-item">
-                <span className="user-modal-stat-value">{profile.totalQuizzes}</span>
-                <span className="user-modal-stat-label">Quiz đã tạo</span>
-              </div>
-              <div className="user-modal-stat-item">
-                <span className="user-modal-stat-value">{profile.totalPosts}</span>
-                <span className="user-modal-stat-label">Bài diễn đàn</span>
-              </div>
-            </div>
+              {/* Actions */}
+              <div className="upm-actions">
+                {friendshipStatus === 'SELF' && (
+                  <p className="upm-self-badge">Đây là tài khoản của bạn</p>
+                )}
 
-            {/* Actions */}
-            <div className="user-modal-actions">
-              {friendshipStatus === 'SELF' && (
-                <p className="user-modal-self-badge">Đây là tài khoản của bạn</p>
-              )}
-
-              {friendshipStatus === 'NONE' && (
-                <button 
-                  className="btn btn-primary user-modal-btn" 
-                  onClick={() => handleFriendAction('request')}
-                  disabled={actionLoading}
-                >
-                  <UserPlus size={16} />
-                  {actionLoading ? 'Đang xử lý...' : 'Kết bạn'}
-                </button>
-              )}
-
-              {friendshipStatus === 'PENDING_SENT' && (
-                <button 
-                  className="btn btn-outline btn-danger user-modal-btn" 
-                  onClick={() => handleFriendAction('decline')}
-                  disabled={actionLoading}
-                >
-                  <UserMinus size={16} />
-                  {actionLoading ? 'Đang xử lý...' : 'Hủy lời mời kết bạn'}
-                </button>
-              )}
-
-              {friendshipStatus === 'PENDING_RECEIVED' && (
-                <div className="user-modal-btn-group">
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => handleFriendAction('accept')}
+                {friendshipStatus === 'NONE' && (
+                  <button
+                    className="upm-btn upm-btn-primary"
+                    onClick={() => handleFriendAction('request')}
                     disabled={actionLoading}
                   >
-                    <UserCheck size={16} />
-                    {actionLoading ? '...' : 'Đồng ý kết bạn'}
+                    {actionLoading ? <Loader2 size={15} className="upm-spinner-sm" /> : <UserPlus size={15} />}
+                    {actionLoading ? 'Đang gửi...' : 'Kết bạn'}
                   </button>
-                  <button 
-                    className="btn btn-outline btn-danger" 
+                )}
+
+                {friendshipStatus === 'PENDING_SENT' && (
+                  <button
+                    className="upm-btn upm-btn-outline-muted"
                     onClick={() => handleFriendAction('decline')}
                     disabled={actionLoading}
                   >
-                     Từ chối
+                    <UserMinus size={15} />
+                    Hủy lời mời
                   </button>
-                </div>
-              )}
+                )}
 
-              {friendshipStatus === 'ACCEPTED' && (
-                <div className="user-modal-btn-group">
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={handleMessage}
-                  >
-                    <MessageSquare size={16} />
-                    Nhắn tin
-                  </button>
-                  <button 
-                    className="btn btn-outline btn-danger" 
-                    onClick={() => handleFriendAction('remove')}
-                    disabled={actionLoading}
-                  >
-                    Hủy kết bạn
-                  </button>
-                </div>
-              )}
+                {friendshipStatus === 'PENDING_RECEIVED' && (
+                  <div className="upm-btn-row">
+                    <button
+                      className="upm-btn upm-btn-primary"
+                      onClick={() => handleFriendAction('accept')}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? <Loader2 size={15} className="upm-spinner-sm" /> : <UserCheck size={15} />}
+                      {actionLoading ? '...' : 'Đồng ý'}
+                    </button>
+                    <button
+                      className="upm-btn upm-btn-danger-outline"
+                      onClick={() => handleFriendAction('decline')}
+                      disabled={actionLoading}
+                    >
+                      Từ chối
+                    </button>
+                  </div>
+                )}
+
+                {friendshipStatus === 'ACCEPTED' && (
+                  <div className="upm-btn-row">
+                    <button className="upm-btn upm-btn-primary" onClick={handleMessage}>
+                      <MessageSquare size={15} />
+                      Nhắn tin
+                    </button>
+                    <button
+                      className="upm-btn upm-btn-danger-outline"
+                      onClick={() => handleFriendAction('remove')}
+                      disabled={actionLoading}
+                    >
+                      Hủy kết bạn
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

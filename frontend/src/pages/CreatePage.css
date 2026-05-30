@@ -12,12 +12,14 @@
 .create-title {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: #fff;
   margin-bottom: 8px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.35), 0 1px 4px rgba(0,0,0,0.25);
 }
 
 .create-subtitle {
-  color: var(--text-secondary);
+  color: rgba(255,255,255,0.88);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.3);
 }
 
 .create-form {
@@ -30,9 +32,10 @@
 
 /* Upload Zone */
 .upload-zone {
-  border: 2px dashed var(--primary-mid);
+  border: 2px dashed rgba(139, 92, 246, 0.5);
   border-radius: var(--border-radius-lg);
-  background: white;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
   transition: var(--transition);
   min-height: 180px;
   display: flex;

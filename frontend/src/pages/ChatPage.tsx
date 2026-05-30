@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Send, Search, MessageSquare, ArrowLeft } from 'lucide-react';
 import { chatService, type Author } from '../services/chatService';
+import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 import type { ChatMessage, Conversation } from '../types';
 import { UserProfileModal } from '../components/UserProfileModal';
@@ -49,16 +50,15 @@ const ChatPage = () => {
           if (foundFriend) {
             setActiveFriend(foundFriend);
           } else {
-            // Fetch public profile if not in friend list to allow chatting if they initiated or if friend is valid
+            // Friend not in list yet — fetch their profile
             try {
-              const res = await chatService.getFriendshipStatus(idNum);
-              // Allow chat if they are friends or if we have conversations
-              if (res.status === 'ACCEPTED') {
-                // Get the user details somehow, or just mock the basic author object until fetched
-                setActiveFriend({ id: idNum, name: `Người dùng #${idNum}` });
+              const profile = await userService.getUserProfile(idNum);
+              const status = await chatService.getFriendshipStatus(idNum);
+              if (status.status === 'ACCEPTED') {
+                setActiveFriend({ id: profile.id, name: profile.name, avatar: profile.avatar });
               }
             } catch (err) {
-              console.error('Error fetching friendship status:', err);
+              console.error('Error fetching user profile for chat:', err);
             }
           }
         }
