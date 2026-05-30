@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { CornerDownRight, Loader2, Send } from 'lucide-react';
+import { UserProfileModal } from '../UserProfileModal';
 import type { ForumComment, QuizComment } from '../../types';
 import './CommentThread.css';
 
@@ -35,6 +35,7 @@ const CommentThread = ({
   const [replying, setReplying] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedAuthorId, setSelectedAuthorId] = useState<number | null>(null);
 
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,22 +56,22 @@ const CommentThread = ({
   return (
     <div className={`comment-thread ${depth > 0 ? 'comment-thread--nested' : ''}`}>
       <div className="comment-item">
-        <Link 
-          to={`/profile/${comment.author.id}`} 
+        <div 
           className="comment-avatar" 
-          style={{ background: avatarColor, textDecoration: 'none', color: 'white' }}
+          style={{ background: avatarColor, textDecoration: 'none', color: 'white', cursor: 'pointer' }}
+          onClick={() => setSelectedAuthorId(comment.author.id)}
         >
           {getInitials(comment.author.name)}
-        </Link>
+        </div>
         <div className="comment-body">
           <div className="comment-header">
-            <Link 
-              to={`/profile/${comment.author.id}`} 
+            <div 
               className="comment-author" 
-              style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 600 }}
+              style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 600, cursor: 'pointer' }}
+              onClick={() => setSelectedAuthorId(comment.author.id)}
             >
               {comment.author.name}
-            </Link>
+            </div>
             {comment.replyToAuthorName && (
               <span className="comment-reply-to">
                 <CornerDownRight size={12} />
@@ -129,6 +130,13 @@ const CommentThread = ({
             />
           ))}
         </div>
+      )}
+
+      {selectedAuthorId !== null && (
+        <UserProfileModal 
+          userId={selectedAuthorId} 
+          onClose={() => setSelectedAuthorId(null)} 
+        />
       )}
     </div>
   );

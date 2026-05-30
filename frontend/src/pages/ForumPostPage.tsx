@@ -5,6 +5,7 @@ import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
 import CommentThread from '../components/Forum/CommentThread';
+import { UserProfileModal } from '../components/UserProfileModal';
 import type { ForumPost, ForumComment } from '../types';
 import './ForumPostPage.css';
 
@@ -35,6 +36,7 @@ const ForumPostPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const { alert } = useDialog();
+  const [selectedAuthorId, setSelectedAuthorId] = useState<number | null>(null);
 
   const loadComments = useCallback(async () => {
     if (!id) return;
@@ -130,10 +132,10 @@ const ForumPostPage = () => {
 
         <div className="forum-post-layout">
           <article className="forum-post-article card">
-            <Link 
-              to={`/profile/${post.author.id}`}
+            <div 
               className="fpa-author" 
-              style={{ textDecoration: 'none', color: 'inherit' }}
+              onClick={() => setSelectedAuthorId(post.author.id)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'inherit' }}
             >
               <div
                 className="fpa-avatar"
@@ -145,7 +147,7 @@ const ForumPostPage = () => {
                 <div className="fpa-name" style={{ textDecoration: 'underline' }}>{post.author.name}</div>
                 <div className="fpa-time">{timeAgo(post.createdAt)}</div>
               </div>
-            </Link>
+            </div>
 
             {post.tags && post.tags.length > 0 && (
               <div className="fpa-tags">
@@ -277,6 +279,13 @@ const ForumPostPage = () => {
           </section>
         </div>
       </div>
+
+      {selectedAuthorId !== null && (
+        <UserProfileModal 
+          userId={selectedAuthorId} 
+          onClose={() => setSelectedAuthorId(null)} 
+        />
+      )}
     </main>
   );
 };

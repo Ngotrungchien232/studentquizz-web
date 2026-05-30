@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Plus, ThumbsUp, MessageCircle, Search, TrendingUp, Clock, Tag, Paperclip, Link2 } from 'lucide-react';
 import { forumService } from '../services/quizService';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
 import type { ForumPost } from '../types';
 import CreatePostModal from '../components/Forum/CreatePostModal';
+import { UserProfileModal } from '../components/UserProfileModal';
 import './ForumPage.css';
 
 const timeAgo = (iso: string) => {
@@ -25,7 +26,7 @@ const getInitials = (name: string) =>
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
 
 const ForumPage = () => {
-  const navigate = useNavigate();
+  const [selectedAuthorId, setSelectedAuthorId] = useState<number | null>(null);
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [filtered, setFiltered] = useState<ForumPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,7 +185,7 @@ const ForumPage = () => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (post.author.id) {
-                          navigate(`/profile/${post.author.id}`);
+                          setSelectedAuthorId(post.author.id);
                         }
                       }}
                       style={{ cursor: 'pointer' }}
@@ -300,6 +301,13 @@ const ForumPage = () => {
         <CreatePostModal
           onClose={() => setShowCreate(false)}
           onCreated={handlePostCreated}
+        />
+      )}
+
+      {selectedAuthorId !== null && (
+        <UserProfileModal 
+          userId={selectedAuthorId} 
+          onClose={() => setSelectedAuthorId(null)} 
         />
       )}
     </main>

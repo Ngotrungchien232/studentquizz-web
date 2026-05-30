@@ -175,6 +175,7 @@ img {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 /* ─── Animations ─────────────────────────────────────────── */
