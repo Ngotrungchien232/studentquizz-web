@@ -17,6 +17,7 @@ const Navbar = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
   const [selectedFriendRequestUserId, setSelectedFriendRequestUserId] = useState<number | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -117,9 +118,15 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    logout();
     setUserDropdown(false);
+    setMenuOpen(false);
     setShowNotifications(false);
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
     navigate('/');
   };
 
@@ -336,6 +343,27 @@ const Navbar = () => {
           userId={selectedFriendRequestUserId} 
           onClose={() => setSelectedFriendRequestUserId(null)} 
         />
+      )}
+
+      {/* ─── Logout Confirmation Modal ─── */}
+      {showLogoutConfirm && (
+        <div className="logout-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="logout-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="logout-modal__icon">
+              <span>👋</span>
+            </div>
+            <h3 className="logout-modal__title">Đăng xuất?</h3>
+            <p className="logout-modal__desc">Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?</p>
+            <div className="logout-modal__actions">
+              <button className="logout-modal__btn logout-modal__btn--cancel" onClick={() => setShowLogoutConfirm(false)}>
+                Ở lại
+              </button>
+              <button className="logout-modal__btn logout-modal__btn--confirm" onClick={confirmLogout}>
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </nav>
   );

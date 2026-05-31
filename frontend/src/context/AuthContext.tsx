@@ -37,6 +37,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = (newToken: string, newUser: User) => {
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
+    // Flag để WelcomeModal hiển thị sau khi đăng nhập
+    localStorage.setItem('show_welcome_modal', 'true');
     setToken(newToken);
     setUser(newUser);
   };

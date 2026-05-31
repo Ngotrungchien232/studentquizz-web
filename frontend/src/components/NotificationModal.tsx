@@ -14,44 +14,47 @@ const WelcomeModal = () => {
   const closeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const hasSeen = sessionStorage.getItem('hasSeenWelcomeModal');
-      if (!hasSeen) {
-        const openTimer = setTimeout(() => {
-          setIsOpen(true);
-          setCountdown(AUTO_CLOSE_SEC);
+    if (!isAuthenticated || !user) return;
 
-          // Countdown tick
-          timerRef.current = setInterval(() => {
-            setCountdown(prev => {
-              if (prev <= 1) {
-                clearInterval(timerRef.current!);
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
+    // Kiểm tra flag được đặt bởi AuthContext.login()
+    const shouldShow = localStorage.getItem('show_welcome_modal') === 'true';
+    if (!shouldShow) return;
 
-          // Auto close after N seconds
-          closeRef.current = setTimeout(() => {
-            handleClose();
-          }, AUTO_CLOSE_SEC * 1000);
-        }, 600);
+    // Xóa flag ngay lập tức để chỉ hiện 1 lần
+    localStorage.removeItem('show_welcome_modal');
 
-        return () => clearTimeout(openTimer);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const openTimer = setTimeout(() => {
+      setIsOpen(true);
+      setCountdown(AUTO_CLOSE_SEC);
+
+      // Đếm ngược 1s/tick
+      timerRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current!);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Tự đóng sau N giây
+      closeRef.current = setTimeout(() => {
+        triggerClose();
+      }, AUTO_CLOSE_SEC * 1000);
+    }, 700);
+
+    return () => clearTimeout(openTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
-  const handleClose = () => {
+  const triggerClose = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (closeRef.current) clearTimeout(closeRef.current);
     setIsClosing(true);
     setTimeout(() => {
       setIsOpen(false);
       setIsClosing(false);
-      sessionStorage.setItem('hasSeenWelcomeModal', 'true');
     }, 350);
   };
 
@@ -60,7 +63,10 @@ const WelcomeModal = () => {
   const progress = ((AUTO_CLOSE_SEC - countdown) / AUTO_CLOSE_SEC) * 100;
 
   return (
-    <div className={`wm-overlay ${isClosing ? 'wm-overlay--out' : ''}`} onClick={handleClose}>
+    <div
+      className={`wm-overlay ${isClosing ? 'wm-overlay--out' : ''}`}
+      onClick={triggerClose}
+    >
       <div
         className={`wm-box ${isClosing ? 'wm-box--out' : ''}`}
         onClick={e => e.stopPropagation()}
@@ -68,7 +74,7 @@ const WelcomeModal = () => {
         aria-modal="true"
         aria-label="Thông báo chào mừng"
       >
-        {/* Gradient header banner */}
+        {/* Gradient banner header */}
         <div className="wm-banner">
           <div className="wm-banner__rings">
             <span className="wm-ring wm-ring--1" />
@@ -79,21 +85,18 @@ const WelcomeModal = () => {
           <h2 className="wm-banner__title">THÔNG BÁO</h2>
         </div>
 
-        {/* Progress bar auto-close */}
+        {/* Progress bar tự đóng */}
         <div className="wm-progress-track">
-          <div
-            className="wm-progress-fill"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="wm-progress-fill" style={{ width: `${progress}%` }} />
         </div>
         <p className="wm-countdown">Tự đóng sau {countdown}s</p>
 
-        {/* Close button */}
-        <button className="wm-close" onClick={handleClose} aria-label="Đóng thông báo">
+        {/* Nút đóng */}
+        <button className="wm-close" onClick={triggerClose} aria-label="Đóng thông báo">
           <X size={16} />
         </button>
 
-        {/* Content */}
+        {/* Nội dung */}
         <div className="wm-body">
           <div className="wm-line">
             <span className="wm-emoji">👋</span>
@@ -109,9 +112,9 @@ const WelcomeModal = () => {
             <span className="wm-emoji">🚧</span>
             <p>
               Hiện tại website vẫn đang trong quá trình hoàn thiện và phát triển thêm nhiều tính năng mới.
-              Vì vậy, nếu trong quá trình sử dụng các bạn có bất kỳ <strong>góp ý, báo lỗi</strong> hoặc <strong>đề xuất tính năng</strong> nào,
-              hãy đăng bài lên{' '}
-              <a href="/forum" className="wm-link" onClick={handleClose}>
+              Vì vậy, nếu trong quá trình sử dụng các bạn có bất kỳ <strong>góp ý, báo lỗi</strong> hoặc{' '}
+              <strong>đề xuất tính năng</strong> nào, hãy đăng bài lên{' '}
+              <a href="/forum" className="wm-link" onClick={triggerClose}>
                 Diễn đàn
               </a>{' '}
               để Chiến có thể tiếp nhận và cải thiện website ngày càng tốt hơn nhé!
@@ -134,12 +137,12 @@ const WelcomeModal = () => {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA buttons */}
         <div className="wm-footer">
-          <button className="wm-btn wm-btn--primary" onClick={handleClose}>
+          <button className="wm-btn wm-btn--primary" onClick={triggerClose}>
             ✨ Bắt đầu khám phá
           </button>
-          <a href="/forum" className="wm-btn wm-btn--outline" onClick={handleClose}>
+          <a href="/forum" className="wm-btn wm-btn--outline" onClick={triggerClose}>
             📝 Gửi góp ý
           </a>
         </div>
