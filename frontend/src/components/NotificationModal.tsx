@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './NotificationModal.css';
@@ -12,6 +12,22 @@ const WelcomeModal = () => {
   const [countdown, setCountdown] = useState(AUTO_CLOSE_SEC);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const closeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isOpenRef = useRef(false);
+
+  // Dùng useCallback để tránh stale closure khi gọi từ setTimeout
+  const triggerClose = useCallback(() => {
+    if (!isOpenRef.current) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (closeRef.current) clearTimeout(closeRef.current);
+    timerRef.current = null;
+    closeRef.current = null;
+    isOpenRef.current = false;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+    }, 350);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -24,6 +40,7 @@ const WelcomeModal = () => {
     localStorage.removeItem('show_welcome_modal');
 
     const openTimer = setTimeout(() => {
+      isOpenRef.current = true;
       setIsOpen(true);
       setCountdown(AUTO_CLOSE_SEC);
 
@@ -32,6 +49,7 @@ const WelcomeModal = () => {
         setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
+            timerRef.current = null;
             return 0;
           }
           return prev - 1;
@@ -44,19 +62,10 @@ const WelcomeModal = () => {
       }, AUTO_CLOSE_SEC * 1000);
     }, 700);
 
-    return () => clearTimeout(openTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user]);
-
-  const triggerClose = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (closeRef.current) clearTimeout(closeRef.current);
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-    }, 350);
-  };
+    return () => {
+      clearTimeout(openTimer);
+    };
+  }, [isAuthenticated, user, triggerClose]);
 
   if (!isOpen) return null;
 

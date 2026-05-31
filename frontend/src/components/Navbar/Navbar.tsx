@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, LogOut, User, ChevronDown, Bell, Heart, MessageSquare, Reply, UserPlus, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -325,7 +326,7 @@ const Navbar = () => {
           ))}
           <div className="navbar__mobile-auth">
             {isAuthenticated ? (
-              <button className="btn btn-outline" onClick={() => { handleLogout(); setMenuOpen(false); }}>
+              <button className="btn btn-outline" onClick={handleLogout}>
                 <LogOut size={16} /> Đăng xuất
               </button>
             ) : (
@@ -345,8 +346,8 @@ const Navbar = () => {
         />
       )}
 
-      {/* ─── Logout Confirmation Modal ─── */}
-      {showLogoutConfirm && (
+      {/* ─── Logout Confirmation Modal (rendered via Portal to avoid nav stacking context) ─── */}
+      {showLogoutConfirm && createPortal(
         <div className="logout-overlay" onClick={() => setShowLogoutConfirm(false)}>
           <div className="logout-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
             <div className="logout-modal__icon">
@@ -363,7 +364,8 @@ const Navbar = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </nav>
   );
