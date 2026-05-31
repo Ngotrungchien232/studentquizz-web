@@ -7,17 +7,8 @@ import { useDialog } from '../context/DialogContext';
 import CommentThread from '../components/Forum/CommentThread';
 import { UserProfileModal } from '../components/UserProfileModal';
 import type { ForumPost, ForumComment } from '../types';
+import { timeAgo } from '../utils/dateUtils';
 import './ForumPostPage.css';
-
-const timeAgo = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'Vừa xong';
-  if (m < 60) return `${m} phút trước`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
-  return `${Math.floor(h / 24)} ngày trước`;
-};
 
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
 

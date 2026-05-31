@@ -6,6 +6,7 @@ import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import type { UserProfile } from '../services/userService';
 import AppealModal from '../components/AppealModal';
+import { formatDateTime } from '../utils/dateUtils';
 import './ProfilePage.css';
 
 type AppealTarget = {
@@ -528,7 +529,7 @@ const ProfilePage: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span className="category-badge" style={{ padding: '2px 8px', fontSize: '0.75rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '12px', fontWeight: 600 }}>{att.quizCategory}</span>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          Đã làm: {new Date(att.completedAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                           Đã làm: {formatDateTime(att.completedAt)}
                         </span>
                       </div>
                     </div>

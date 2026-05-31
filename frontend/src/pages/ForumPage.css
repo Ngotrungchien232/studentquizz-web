@@ -60,11 +60,12 @@
 .forum-search__input {
   width: 100%;
   padding: 10px 14px 10px 36px;
-  border: 1.5px solid var(--card-border);
+  border: 1.5px solid rgba(255,255,255,0.6);
   border-radius: var(--border-radius-full);
   font-size: 0.88rem;
   font-family: inherit;
-  background: white;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
   color: var(--text-primary);
   transition: var(--transition);
 }
@@ -72,7 +73,8 @@
 .forum-search__input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.18);
 }
 
 .forum-sort {
@@ -86,11 +88,12 @@
   gap: 6px;
   padding: 9px 16px;
   border-radius: var(--border-radius-full);
-  border: 1.5px solid var(--card-border);
+  border: 1.5px solid rgba(255,255,255,0.55);
   font-size: 0.83rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: white;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(6px);
   cursor: pointer;
   transition: var(--transition);
   font-family: inherit;
@@ -99,8 +102,9 @@
 .forum-sort-btn.active,
 .forum-sort-btn:hover {
   border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light);
+  color: #fff;
+  background: var(--primary);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.4);
 }
 
 /* ─── Post Card ─── */
@@ -114,14 +118,21 @@
   display: block;
   padding: 22px 24px;
   border-radius: var(--border-radius-lg);
-  transition: var(--transition-slow);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.72);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  transition: all 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
   color: inherit;
+  animation: fadeInUp 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) both;
 }
 
 .forum-post-card:hover {
-  border-color: var(--primary-mid);
-  box-shadow: 0 6px 24px rgba(124,58,237,0.1);
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(124, 58, 237, 0.3);
+  box-shadow: 0 12px 40px rgba(124,58,237,0.18), 0 4px 12px rgba(0,0,0,0.06);
+  transform: translateY(-4px) scale(1.008);
 }
 
 .fpc-author {

@@ -6,6 +6,7 @@ import { userService } from '../services/userService';
 import { useAuth } from '../context/AuthContext';
 import type { ChatMessage, Conversation } from '../types';
 import { UserProfileModal } from '../components/UserProfileModal';
+import { formatTime, formatConversationTime, formatDateTime, parseServerDate } from '../utils/dateUtils';
 import './ChatPage.css';
 
 const ChatPage = () => {
@@ -177,10 +178,7 @@ const ChatPage = () => {
     !conversations.some(c => c.friend.id === f.id)
   );
 
-  const formatMessageTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  };
+  const formatMessageTime = (dateStr: string) => formatTime(dateStr);
 
   if (loading) {
     return (
@@ -236,7 +234,7 @@ const ChatPage = () => {
                         <div className="chat-page__item-header">
                           <span className="chat-page__item-name">{c.friend.name}</span>
                           <span className="chat-page__item-time">
-                            {new Date(c.lastMessageTime).toLocaleDateString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                            {formatConversationTime(c.lastMessageTime)}
                           </span>
                         </div>
                         <p className="chat-page__item-last">
@@ -330,20 +328,13 @@ const ChatPage = () => {
                   messages.map((msg, index) => {
                     const isOwn = msg.senderId === user?.id;
                     const showTime = index === 0 || 
-                      new Date(msg.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime() > 300000; // 5 mins gap
+                      parseServerDate(msg.createdAt).getTime() - parseServerDate(messages[index - 1].createdAt).getTime() > 300000; // 5 mins gap
                     
                     return (
                       <div key={msg.id}>
                         {showTime && (
                           <div className="chat-page__time-divider">
-                            {new Date(msg.createdAt).toLocaleDateString('vi-VN', {
-                              weekday: 'long',
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {formatDateTime(msg.createdAt)}
                           </div>
                         )}
                         <div className={`chat-page__message-bubble-wrapper ${isOwn ? 'own' : 'other'}`}>

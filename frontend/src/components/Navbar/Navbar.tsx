@@ -6,6 +6,7 @@ import { notificationService } from '../../services/notificationService';
 import { chatService } from '../../services/chatService';
 import { UserProfileModal } from '../UserProfileModal';
 import type { Notification } from '../../types';
+import { timeAgo } from '../../utils/dateUtils';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -125,20 +126,7 @@ const Navbar = () => {
   const getInitials = (name: string) =>
     name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
-  const formatTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Vừa xong';
-    if (diffMins < 60) return `${diffMins} phút trước`;
-    if (diffHours < 24) return `${diffHours} giờ trước`;
-    if (diffDays < 7) return `${diffDays} ngày trước`;
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  };
+  const formatNotifTime = (dateStr: string) => timeAgo(dateStr);
 
   const renderNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -253,7 +241,7 @@ const Navbar = () => {
                             </div>
                             <div className="navbar__notification-item-content">
                               <p className="navbar__notification-item-text">{n.message}</p>
-                              <span className="navbar__notification-item-time">{formatTime(n.createdAt)}</span>
+                              <span className="navbar__notification-item-time">{formatNotifTime(n.createdAt)}</span>
                             </div>
                             {!n.isRead && <div className="navbar__notification-unread-dot" />}
                           </div>

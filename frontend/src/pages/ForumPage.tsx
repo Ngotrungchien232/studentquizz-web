@@ -7,18 +7,8 @@ import { useDialog } from '../context/DialogContext';
 import type { ForumPost } from '../types';
 import CreatePostModal from '../components/Forum/CreatePostModal';
 import { UserProfileModal } from '../components/UserProfileModal';
+import { timeAgo, parseServerDate } from '../utils/dateUtils';
 import './ForumPage.css';
-
-const timeAgo = (iso: string) => {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'Vừa xong';
-  if (m < 60) return `${m} phút trước`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
-  const d = Math.floor(h / 24);
-  return `${d} ngày trước`;
-};
 
 const getInitials = (name: string) =>
   name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -286,7 +276,7 @@ const ForumPage = () => {
               <div className="forum-stat-row">
                 <span>Hôm nay</span>
                 <strong>{posts.filter(p => {
-                  const d = new Date(p.createdAt);
+                  const d = parseServerDate(p.createdAt);
                   const now = new Date();
                   return d.toDateString() === now.toDateString();
                 }).length} bài</strong>
