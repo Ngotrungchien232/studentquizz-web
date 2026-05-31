@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './NotificationModal.css';
 
-const AUTO_CLOSE_SEC = 5;
+const AUTO_CLOSE_SEC = 15;
 
 const WelcomeModal = () => {
   const { isAuthenticated, user } = useAuth();
