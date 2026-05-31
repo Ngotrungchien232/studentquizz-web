@@ -20,8 +20,18 @@ export function parseServerDate(iso: string): Date {
   if (iso.endsWith('Z') || iso.includes('+') || (iso.length > 10 && iso.lastIndexOf('-') > 10)) {
     return new Date(iso);
   }
-  // Không có timezone info → thêm 'Z' để interpret as UTC
-  return new Date(iso + 'Z');
+  // Thử parse theo UTC trước (thêm 'Z')
+  const utcDate = new Date(iso + 'Z');
+  
+  // Nếu date parse theo UTC bị lệch vào tương lai (hơn 1 phút),
+  // nghĩa là server đang chạy cùng timezone với client (local development)
+  // và trả về local time mà không có timezone.
+  // Lúc này ta fallback về parse theo local time (không thêm 'Z').
+  if (utcDate.getTime() > Date.now() + 60000) {
+    return new Date(iso);
+  }
+  
+  return utcDate;
 }
 
 /**

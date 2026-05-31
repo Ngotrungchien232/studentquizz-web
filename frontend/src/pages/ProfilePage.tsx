@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { BookOpen, MessageSquare, Trophy, Edit3, UserPlus, UserCheck, UserX, MessageCircle, Clock, Play, ThumbsUp } from 'lucide-react';
 import { userService } from '../services/userService';
 import { quizService, forumService } from '../services/quizService';
 import { chatService } from '../services/chatService';
 import { useAuth } from '../context/AuthContext';
 import type { UserProfile } from '../services/userService';
 import AppealModal from '../components/AppealModal';
-import { formatDateTime } from '../utils/dateUtils';
+import { formatDateTime, timeAgo } from '../utils/dateUtils';
 import './ProfilePage.css';
 
 type AppealTarget = {
@@ -16,6 +17,14 @@ type AppealTarget = {
   rejectReason?: string;
 };
 
+type Tab = 'quizzes' | 'posts' | 'history';
+
+const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
+  PENDING:  { bg: 'rgba(245,158,11,0.12)',  color: '#D97706', label: '⏳ Chờ duyệt' },
+  APPROVED: { bg: 'rgba(16,185,129,0.12)',  color: '#059669', label: '✅ Đã duyệt'  },
+  REJECTED: { bg: 'rgba(239,68,68,0.12)',   color: '#DC2626', label: '❌ Từ chối'   },
+};
+
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId?: string }>();
   const navigate = useNavigate();
@@ -23,18 +32,16 @@ const ProfilePage: React.FC = () => {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>('quizzes');
   const [appealTarget, setAppealTarget] = useState<AppealTarget | null>(null);
-  const [appealSuccess, setAppealSuccess] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  // Friendship state
-  const [friendshipStatus, setFriendshipStatus] = useState<string>('NONE'); // SELF, NONE, ACCEPTED, PENDING_SENT, PENDING_RECEIVED
+  const [friendshipStatus, setFriendshipStatus] = useState<string>('NONE');
   const [friendActionLoading, setFriendActionLoading] = useState(false);
 
-  // Edit profile state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPassword, setEditPassword] = useState('');
-  const [editAvatar, setEditAvatar] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [updatingProfile, setUpdatingProfile] = useState(false);
@@ -45,65 +52,55 @@ const ProfilePage: React.FC = () => {
   const getInitials = (name: string) =>
     name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
   const refreshProfile = async () => {
-    try {
-      if (isOwnProfile) {
-        const data = await userService.getMyProfile();
-        setProfile(data);
-        setFriendshipStatus('SELF');
-        try {
-          const attemptData = await quizService.getMyAttempts();
-          setAttempts(attemptData);
-        } catch (attemptErr) {
-          console.error('Lỗi khi tải lịch sử quiz:', attemptErr);
-        }
-      } else {
-        const idNum = parseInt(userId!, 10);
-        const data = await userService.getUserProfile(idNum);
-        setProfile(data);
-        const statusRes = await chatService.getFriendshipStatus(idNum);
-        setFriendshipStatus(statusRes.status);
-      }
-    } catch (error) {
-      console.error('Lỗi khi tải hồ sơ:', error);
+    if (isOwnProfile) {
+      const data = await userService.getMyProfile();
+      setProfile(data);
+      setFriendshipStatus('SELF');
+      try {
+        const attemptData = await quizService.getMyAttempts();
+        setAttempts(attemptData);
+      } catch { /* ignore */ }
+    } else {
+      const idNum = parseInt(userId!, 10);
+      const [data, statusRes] = await Promise.all([
+        userService.getUserProfile(idNum),
+        chatService.getFriendshipStatus(idNum),
+      ]);
+      setProfile(data);
+      setFriendshipStatus(statusRes.status);
     }
   };
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const load = async () => {
       setLoading(true);
-      try {
-        await refreshProfile();
-      } catch (error) {
-        console.error('Lỗi khi tải hồ sơ:', error);
-      } finally {
-        setLoading(false);
-      }
+      try { await refreshProfile(); } catch (e) { console.error(e); }
+      finally { setLoading(false); }
     };
-    fetchProfile();
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const handleFriendAction = async (action: 'request' | 'accept' | 'decline' | 'remove') => {
     if (!profile || isOwnProfile) return;
     try {
       setFriendActionLoading(true);
-      if (action === 'request') {
-        await chatService.sendRequest(profile.id);
-      } else if (action === 'accept') {
-        await chatService.acceptRequest(profile.id);
-      } else if (action === 'decline') {
-        await chatService.declineRequest(profile.id);
-      } else if (action === 'remove') {
-        if (window.confirm('Bạn có chắc chắn muốn hủy kết bạn không?')) {
-          await chatService.removeFriend(profile.id);
-        } else {
-          return;
-        }
+      if (action === 'request')  await chatService.sendRequest(profile.id);
+      if (action === 'accept')   await chatService.acceptRequest(profile.id);
+      if (action === 'decline')  await chatService.declineRequest(profile.id);
+      if (action === 'remove') {
+        if (!window.confirm('Bạn có chắc muốn hủy kết bạn?')) return;
+        await chatService.removeFriend(profile.id);
       }
-      // Refresh status and list after action
       await refreshProfile();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Có lỗi xảy ra khi thực hiện kết bạn.');
+      alert(err.response?.data?.message || 'Có lỗi xảy ra.');
     } finally {
       setFriendActionLoading(false);
     }
@@ -112,53 +109,35 @@ const ProfilePage: React.FC = () => {
   const handleOpenEdit = () => {
     if (!profile) return;
     setEditName(profile.name);
-    setEditAvatar(profile.avatar || '');
     setAvatarPreview(profile.avatar || '');
-    setEditPassword('');
     setAvatarFile(null);
+    setEditPassword('');
     setShowEditModal(true);
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
-    }
+    const file = e.target.files?.[0];
+    if (file) { setAvatarFile(file); setAvatarPreview(URL.createObjectURL(file)); }
   };
 
-  const handleUpdateProfileSubmit = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editName.trim()) return;
-
     try {
       setUpdatingProfile(true);
-      let finalAvatarUrl = editAvatar;
-
+      let avatarUrl = profile?.avatar || '';
       if (avatarFile) {
-        const uploadRes = await forumService.uploadAttachment(avatarFile);
-        finalAvatarUrl = uploadRes.url;
+        const res = await forumService.uploadAttachment(avatarFile);
+        avatarUrl = res.url;
       }
-
       const updated = await userService.updateProfile({
-        name: editName,
-        password: editPassword || undefined,
-        avatar: finalAvatarUrl
+        name: editName, password: editPassword || undefined, avatar: avatarUrl,
       });
-
       setProfile(updated);
-      updateUser({
-        id: updated.id,
-        name: updated.name,
-        email: updated.email,
-        avatar: updated.avatar
-      });
-
+      updateUser({ id: updated.id, name: updated.name, email: updated.email, avatar: updated.avatar });
       setShowEditModal(false);
-      setAppealSuccess('Cập nhật hồ sơ thành công!');
-      setTimeout(() => setAppealSuccess(''), 3000);
+      showSuccess('✅ Cập nhật hồ sơ thành công!');
     } catch (err: any) {
-      console.error(err);
       alert(err.response?.data?.message || 'Không thể cập nhật hồ sơ.');
     } finally {
       setUpdatingProfile(false);
@@ -167,26 +146,32 @@ const ProfilePage: React.FC = () => {
 
   const handleAppealSubmit = async (message: string) => {
     if (!appealTarget) return;
-    if (appealTarget.type === 'quiz') {
-      await quizService.appeal(appealTarget.id, message);
-    } else {
-      await forumService.appeal(appealTarget.id, message);
-    }
+    if (appealTarget.type === 'quiz') await quizService.appeal(appealTarget.id, message);
+    else await forumService.appeal(appealTarget.id, message);
     await refreshProfile();
-    setAppealSuccess('Đã gửi khiếu nại thành công! Admin sẽ xem xét lại trong thời gian sớm nhất.');
-    setTimeout(() => setAppealSuccess(''), 5000);
+    showSuccess('✅ Đã gửi khiếu nại thành công!');
   };
 
   if (loading) {
-    return <div className="loading-state">Đang tải hồ sơ...</div>;
+    return (
+      <div className="pf-loading">
+        <div className="spinner" />
+        <p>Đang tải hồ sơ...</p>
+      </div>
+    );
+  }
+  if (!profile) {
+    return <div className="pf-error">Không thể tải thông tin hồ sơ.</div>;
   }
 
-  if (!profile) {
-    return <div className="error-state">Không thể tải thông tin hồ sơ.</div>;
-  }
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
+    { key: 'quizzes', label: 'Quiz', icon: <BookOpen size={15} />, count: profile.quizzes?.length },
+    { key: 'posts',   label: 'Bài viết', icon: <MessageSquare size={15} />, count: profile.posts?.length },
+    ...(isOwnProfile ? [{ key: 'history' as Tab, label: 'Lịch sử', icon: <Trophy size={15} />, count: attempts?.length }] : []),
+  ];
 
   return (
-    <div className="profile-container">
+    <div className="pf-page">
       {appealTarget && (
         <AppealModal
           title={appealTarget.title}
@@ -196,67 +181,55 @@ const ProfilePage: React.FC = () => {
         />
       )}
 
-      {appealSuccess && (
-        <div className="profile-alert profile-alert--success">{appealSuccess}</div>
-      )}
+      {successMsg && <div className="pf-toast">{successMsg}</div>}
 
-      {/* Edit Profile Modal */}
+      {/* Edit Modal */}
       {showEditModal && (
-        <div className="profile-modal-backdrop">
-          <div className="profile-modal">
-            <div className="profile-modal-header">
-              <h3>Chỉnh sửa thông tin cá nhân</h3>
-              <button className="profile-modal-close" onClick={() => setShowEditModal(false)}>&times;</button>
+        <div className="pf-modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="pf-modal" onClick={e => e.stopPropagation()}>
+            <div className="pf-modal__header">
+              <h3>Chỉnh sửa hồ sơ</h3>
+              <button className="pf-modal__close" onClick={() => setShowEditModal(false)}>✕</button>
             </div>
-            <form onSubmit={handleUpdateProfileSubmit} className="profile-modal-form">
-              <div className="profile-modal-avatar-section">
-                <div className="profile-modal-avatar-preview">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar Preview" />
-                  ) : (
-                    <div className="profile-avatar-placeholder">
-                      {getInitials(editName)}
-                    </div>
-                  )}
-                </div>
-                <label className="profile-modal-avatar-btn">
-                  Chọn ảnh đại diện
-                  <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
+            <form onSubmit={handleUpdateProfile} className="pf-modal__body">
+              {/* Avatar picker */}
+              <div className="pf-modal__avatar-row">
+                <label className="pf-modal__avatar-wrap" htmlFor="avatar-upload">
+                  {avatarPreview
+                    ? <img src={avatarPreview} alt="preview" className="pf-modal__avatar-img" />
+                    : <div className="pf-modal__avatar-placeholder">{getInitials(editName)}</div>
+                  }
+                  <div className="pf-modal__avatar-overlay"><Edit3 size={16} /></div>
                 </label>
+                <input id="avatar-upload" type="file" accept="image/*" onChange={handleAvatarChange} className="pf-hidden-input" />
+                <div className="pf-modal__avatar-hint">
+                  <p className="pf-modal__avatar-name">{editName}</p>
+                  <p className="pf-modal__avatar-sub">Nhấn ảnh để thay đổi</p>
+                </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.9rem' }}>Tên hiển thị</label>
+              <div className="pf-modal__field">
+                <label>Tên hiển thị</label>
                 <input
-                  type="text"
-                  required
-                  className="form-control"
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--card-border)', borderRadius: '8px' }}
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                  type="text" required value={editName}
+                  onChange={e => setEditName(e.target.value)}
                   placeholder="Nhập tên hiển thị"
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 600, fontSize: '0.9rem' }}>Mật khẩu mới (bỏ trống nếu không đổi)</label>
+              <div className="pf-modal__field">
+                <label>Mật khẩu mới <span className="pf-optional">(bỏ trống nếu không đổi)</span></label>
                 <input
-                  type="password"
-                  className="form-control"
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--card-border)', borderRadius: '8px' }}
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
-                  minLength={6}
+                  type="password" value={editPassword} minLength={6}
+                  onChange={e => setEditPassword(e.target.value)}
+                  placeholder="Tối thiểu 6 ký tự"
                 />
               </div>
 
-              <div className="profile-modal-footer">
-                <button type="button" className="btn btn-ghost" onClick={() => setShowEditModal(false)} disabled={updatingProfile}>
-                  Hủy
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={updatingProfile || !editName.trim()}>
-                  {updatingProfile ? 'Đang cập nhật...' : 'Lưu thay đổi'}
+              <div className="pf-modal__footer">
+                <button type="button" className="pf-btn pf-btn--ghost" onClick={() => setShowEditModal(false)}>Hủy</button>
+                <button type="submit" className="pf-btn pf-btn--primary" disabled={updatingProfile || !editName.trim()}>
+                  {updatingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
             </form>
@@ -264,296 +237,230 @@ const ProfilePage: React.FC = () => {
         </div>
       )}
 
-      <div className="profile-header">
-        {profile.avatar ? (
-          <img src={profile.avatar} alt={profile.name} className="profile-avatar" />
-        ) : (
-          <div className="profile-avatar-placeholder">
-            {getInitials(profile.name)}
+      {/* ─── Hero Header ─── */}
+      <div className="pf-hero">
+        <div className="pf-hero__banner" />
+        <div className="pf-hero__content">
+          <div className="pf-hero__avatar-wrap">
+            {profile.avatar
+              ? <img src={profile.avatar} alt={profile.name} className="pf-hero__avatar" />
+              : <div className="pf-hero__avatar-placeholder">{getInitials(profile.name)}</div>
+            }
+            {friendshipStatus === 'ACCEPTED' && <div className="pf-hero__badge">✓</div>}
           </div>
-        )}
-        <div className="profile-info">
-          <h1>{profile.name}</h1>
-          <p>{profile.email}</p>
-          <div className="profile-stats">
-            <div className="stat-item">
-              <span className="stat-value">{profile.totalQuizzes}</span>
-              <span className="stat-label">Quiz đã tạo</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{profile.totalPosts}</span>
-              <span className="stat-label">Bài viết diễn đàn</span>
+
+          <div className="pf-hero__info">
+            <h1 className="pf-hero__name">{profile.name}</h1>
+            {isOwnProfile && <p className="pf-hero__email">{profile.email}</p>}
+
+            {/* Stats pills */}
+            <div className="pf-stats">
+              <div className="pf-stat">
+                <BookOpen size={14} />
+                <span><strong>{profile.totalQuizzes}</strong> Quiz</span>
+              </div>
+              <div className="pf-stat">
+                <MessageSquare size={14} />
+                <span><strong>{profile.totalPosts}</strong> Bài viết</span>
+              </div>
+              {isOwnProfile && (
+                <div className="pf-stat">
+                  <Trophy size={14} />
+                  <span><strong>{attempts.length}</strong> Đã làm</span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Dynamic Friend Actions Area */}
-        <div className="profile-actions">
-          {friendshipStatus === 'SELF' && (
-            <button className="btn btn-outline" onClick={handleOpenEdit}>
-              ⚙️ Chỉnh sửa thông tin
-            </button>
-          )}
-
-          {friendshipStatus === 'NONE' && (
-            <button 
-              className="btn btn-primary" 
-              onClick={() => handleFriendAction('request')}
-              disabled={friendActionLoading}
-            >
-              {friendActionLoading ? 'Đang xử lý...' : '➕ Kết bạn'}
-            </button>
-          )}
-
-          {friendshipStatus === 'PENDING_SENT' && (
-            <button 
-              className="btn btn-outline btn-danger" 
-              onClick={() => handleFriendAction('decline')}
-              disabled={friendActionLoading}
-            >
-              {friendActionLoading ? 'Đang xử lý...' : '❌ Hủy lời mời'}
-            </button>
-          )}
-
-          {friendshipStatus === 'PENDING_RECEIVED' && (
-            <div className="profile-actions__button-group">
-              <button 
-                className="btn btn-primary btn-sm" 
-                onClick={() => handleFriendAction('accept')}
-                disabled={friendActionLoading}
-              >
-                {friendActionLoading ? '...' : '✅ Đồng ý'}
+          {/* Action buttons */}
+          <div className="pf-hero__actions">
+            {friendshipStatus === 'SELF' && (
+              <button className="pf-btn pf-btn--outline" onClick={handleOpenEdit}>
+                <Edit3 size={15} /> Chỉnh sửa
               </button>
-              <button 
-                className="btn btn-outline btn-danger btn-sm" 
-                onClick={() => handleFriendAction('decline')}
-                disabled={friendActionLoading}
-              >
-                {friendActionLoading ? '...' : 'Từ chối'}
+            )}
+            {friendshipStatus === 'NONE' && (
+              <button className="pf-btn pf-btn--primary" onClick={() => handleFriendAction('request')} disabled={friendActionLoading}>
+                <UserPlus size={15} /> {friendActionLoading ? '...' : 'Kết bạn'}
               </button>
-            </div>
-          )}
-
-          {friendshipStatus === 'ACCEPTED' && (
-            <div className="profile-actions__button-group">
-              <button 
-                className="btn btn-primary" 
-                onClick={() => navigate(`/chat/${profile.id}`)}
-              >
-                💬 Nhắn tin
+            )}
+            {friendshipStatus === 'PENDING_SENT' && (
+              <button className="pf-btn pf-btn--ghost-red" onClick={() => handleFriendAction('decline')} disabled={friendActionLoading}>
+                <UserX size={15} /> {friendActionLoading ? '...' : 'Hủy lời mời'}
               </button>
-              <button 
-                className="btn btn-outline btn-danger" 
-                onClick={() => handleFriendAction('remove')}
-                disabled={friendActionLoading}
-              >
-                {friendActionLoading ? '...' : 'Hủy kết bạn'}
-              </button>
-            </div>
-          )}
+            )}
+            {friendshipStatus === 'PENDING_RECEIVED' && (
+              <>
+                <button className="pf-btn pf-btn--primary" onClick={() => handleFriendAction('accept')} disabled={friendActionLoading}>
+                  <UserCheck size={15} /> Đồng ý
+                </button>
+                <button className="pf-btn pf-btn--ghost-red" onClick={() => handleFriendAction('decline')} disabled={friendActionLoading}>
+                  Từ chối
+                </button>
+              </>
+            )}
+            {friendshipStatus === 'ACCEPTED' && (
+              <>
+                <button className="pf-btn pf-btn--primary" onClick={() => navigate(`/chat/${profile.id}`)}>
+                  <MessageCircle size={15} /> Nhắn tin
+                </button>
+                <button className="pf-btn pf-btn--ghost-red" onClick={() => handleFriendAction('remove')} disabled={friendActionLoading}>
+                  <UserX size={15} /> Hủy bạn
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="profile-content">
-        <h2>{isOwnProfile ? 'Quiz của tôi' : `Quiz của ${profile.name}`}</h2>
-        {profile.quizzes && profile.quizzes.length > 0 ? (
-          <div className="quizzes-grid">
-            {profile.quizzes.map((quiz) => {
-              const stColors: Record<string, { bg: string, color: string, label: string }> = {
-                'PENDING': { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', label: '⏳ Chờ duyệt' },
-                'APPROVED': { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: '✅ Đã duyệt' },
-                'REJECTED': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', label: '❌ Từ chối' },
-              };
-              const st = stColors[quiz.status || 'PENDING'] || stColors['PENDING'];
-
-              return (
-              <div key={quiz.id} className="quiz-card">
-                <Link to={`/quiz/${quiz.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span className="category-badge">{quiz.category}</span>
-                    {isOwnProfile && (
-                      <span style={{
-                        padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
-                        background: st.bg, color: st.color
-                      }}>
-                        {st.label}
-                      </span>
-                    )}
-                  </div>
-                  <h3>{quiz.title}</h3>
-                  <div className="quiz-meta">
-                    <span>📝 {quiz.questionCount} câu hỏi</span>
-                    <span>▶️ {quiz.playCount} lượt chơi</span>
-                  </div>
-                </Link>
-
-                {isOwnProfile && quiz.status === 'PENDING' && quiz.appealMessage && (
-                  <div className="profile-moderation-box profile-moderation-box--pending">
-                    <strong>Đã gửi khiếu nại</strong>
-                    <p>{quiz.appealMessage}</p>
-                    <span className="profile-moderation-hint">Admin đang xem xét lại.</span>
-                  </div>
-                )}
-
-                {isOwnProfile && quiz.status === 'REJECTED' && (
-                  <div className="profile-moderation-box profile-moderation-box--rejected">
-                    <strong>Lý do admin từ chối:</strong>
-                    <p>{quiz.rejectReason || 'Không có lý do cụ thể.'}</p>
-                    <button
-                      type="button"
-                      className="profile-appeal-btn"
-                      onClick={() => setAppealTarget({
-                        type: 'quiz',
-                        id: quiz.id,
-                        title: quiz.title,
-                        rejectReason: quiz.rejectReason,
-                      })}
-                    >
-                      Gửi khiếu nại
-                    </button>
-                  </div>
-                )}
-              </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>{isOwnProfile ? 'Bạn chưa tạo bài quiz nào.' : 'Người dùng này chưa công khai bài quiz nào.'}</p>
-            {isOwnProfile && (
-              <Link to="/create" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Tạo Quiz Ngay</Link>
-            )}
-          </div>
-        )}
+      {/* ─── Tab Navigation ─── */}
+      <div className="pf-tabs">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            className={`pf-tab ${activeTab === tab.key ? 'pf-tab--active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.count !== undefined && <span className="pf-tab__badge">{tab.count}</span>}
+          </button>
+        ))}
       </div>
 
-      <div className="profile-content" style={{ marginTop: '30px' }}>
-        <h2>{isOwnProfile ? 'Bài viết diễn đàn của tôi' : `Bài viết của ${profile.name}`}</h2>
-        {profile.posts && profile.posts.length > 0 ? (
-          <div className="quizzes-grid">
-            {profile.posts.map((post) => {
-              const stColors: Record<string, { bg: string, color: string, label: string }> = {
-                'PENDING': { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', label: '⏳ Chờ duyệt' },
-                'APPROVED': { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981', label: '✅ Đã duyệt' },
-                'REJECTED': { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', label: '❌ Từ chối' },
-              };
-              const st = stColors[post.status || 'PENDING'] || stColors['PENDING'];
+      {/* ─── Tab Content ─── */}
+      <div className="pf-content">
 
-              return (
-              <div key={`post-${post.id}`} className="quiz-card">
-                <Link to={`/forum/${post.id}`} className="quiz-card-content" style={{ textDecoration: 'none', display: 'block' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span className="category-badge" style={{ background: '#eef2ff', color: '#4f46e5' }}>Diễn đàn</span>
-                    {isOwnProfile && (
-                      <span style={{
-                        padding: '4px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600,
-                        background: st.bg, color: st.color
-                      }}>
-                        {st.label}
-                      </span>
-                    )}
-                  </div>
-                  <h3>{post.title}</h3>
-                  <div className="quiz-meta">
-                    <span>👍 {post.likeCount} Thích</span>
-                    <span>💬 {post.commentCount} Bình luận</span>
-                  </div>
-                </Link>
-
-                {isOwnProfile && post.status === 'PENDING' && post.appealMessage && (
-                  <div className="profile-moderation-box profile-moderation-box--pending">
-                    <strong>Đã gửi khiếu nại</strong>
-                    <p>{post.appealMessage}</p>
-                    <span className="profile-moderation-hint">Admin đang xem xét lại.</span>
-                  </div>
-                )}
-
-                {isOwnProfile && post.status === 'REJECTED' && (
-                  <div className="profile-moderation-box profile-moderation-box--rejected">
-                    <strong>Lý do admin từ chối:</strong>
-                    <p>{post.rejectReason || 'Không có lý do cụ thể.'}</p>
-                    <button
-                      type="button"
-                      className="profile-appeal-btn"
-                      onClick={() => setAppealTarget({
-                        type: 'post',
-                        id: post.id,
-                        title: post.title,
-                        rejectReason: post.rejectReason,
-                      })}
-                    >
-                      Gửi khiếu nại
-                    </button>
-                  </div>
-                )}
-              </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>{isOwnProfile ? 'Bạn chưa đăng bài viết nào trên diễn đàn.' : 'Người dùng này chưa đăng bài viết nào.'}</p>
-            {isOwnProfile && (
-              <Link to="/forum" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Khám phá Diễn đàn</Link>
-            )}
-          </div>
-        )}
-      </div>
-
-      {isOwnProfile && (
-        <div className="profile-content" style={{ marginTop: '40px' }}>
-          <h2>Lịch sử làm bài Quiz và Điểm số</h2>
-          {attempts && attempts.length > 0 ? (
-            <div className="attempts-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-              {attempts.map((att) => {
-                const percent = att.totalQuestions > 0 ? (att.score / att.totalQuestions) * 100 : 0;
-                let scoreColor = '#EF4444'; // Red
-                let scoreBg = '#FEE2E2';
-                if (percent >= 80) {
-                  scoreColor = '#10B981'; // Green
-                  scoreBg = '#D1FAE5';
-                } else if (percent >= 50) {
-                  scoreColor = '#F59E0B'; // Orange
-                  scoreBg = '#FEF3C7';
-                }
-
+        {/* QUIZZES TAB */}
+        {activeTab === 'quizzes' && (
+          profile.quizzes?.length ? (
+            <div className="pf-grid">
+              {profile.quizzes.map(quiz => {
+                const st = STATUS_CONFIG[quiz.status || 'PENDING'];
                 return (
-                  <div key={`attempt-${att.id}`} className="attempt-card card" style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px',
-                    background: 'white', borderRadius: '12px', border: '1px solid var(--card-border)'
-                  }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <Link to={`/quiz/${att.quizId}`} style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', textDecoration: 'none' }} className="attempt-title-hover">
-                        {att.quizTitle}
-                      </Link>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="category-badge" style={{ padding: '2px 8px', fontSize: '0.75rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '12px', fontWeight: 600 }}>{att.quizCategory}</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                           Đã làm: {formatDateTime(att.completedAt)}
-                        </span>
+                  <div key={quiz.id} className="pf-card">
+                    <Link to={`/quiz/${quiz.id}`} className="pf-card__link">
+                      <div className="pf-card__top">
+                        <span className="pf-badge pf-badge--category">{quiz.category}</span>
+                        {isOwnProfile && <span className="pf-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>}
+                      </div>
+                      <h3 className="pf-card__title">{quiz.title}</h3>
+                      <div className="pf-card__meta">
+                        <span><BookOpen size={12} /> {quiz.questionCount} câu</span>
+                        <span><Play size={12} /> {quiz.playCount} lượt</span>
+                      </div>
+                    </Link>
+                    {isOwnProfile && quiz.status === 'REJECTED' && (
+                      <div className="pf-card__alert pf-card__alert--red">
+                        <p className="pf-card__alert-reason">{quiz.rejectReason || 'Không có lý do.'}</p>
+                        <button className="pf-appeal-btn" onClick={() => setAppealTarget({ type: 'quiz', id: quiz.id, title: quiz.title, rejectReason: quiz.rejectReason })}>
+                          Gửi khiếu nại →
+                        </button>
+                      </div>
+                    )}
+                    {isOwnProfile && quiz.status === 'PENDING' && quiz.appealMessage && (
+                      <div className="pf-card__alert pf-card__alert--amber">
+                        <p>Đã gửi khiếu nại · Admin đang xem xét</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="pf-empty">
+              <BookOpen size={40} strokeWidth={1.2} />
+              <p>{isOwnProfile ? 'Bạn chưa tạo quiz nào' : 'Chưa có quiz nào'}</p>
+              {isOwnProfile && <Link to="/create" className="pf-btn pf-btn--primary">Tạo quiz ngay</Link>}
+            </div>
+          )
+        )}
+
+        {/* POSTS TAB */}
+        {activeTab === 'posts' && (
+          profile.posts?.length ? (
+            <div className="pf-grid">
+              {profile.posts.map(post => {
+                const st = STATUS_CONFIG[post.status || 'PENDING'];
+                return (
+                  <div key={post.id} className="pf-card">
+                    <Link to={`/forum/${post.id}`} className="pf-card__link">
+                      <div className="pf-card__top">
+                        <span className="pf-badge pf-badge--forum">Diễn đàn</span>
+                        {isOwnProfile && <span className="pf-badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>}
+                      </div>
+                      <h3 className="pf-card__title">{post.title}</h3>
+                      <div className="pf-card__meta">
+                        <span><ThumbsUp size={12} /> {post.likeCount}</span>
+                        <span><MessageSquare size={12} /> {post.commentCount}</span>
+                        <span><Clock size={12} /> {timeAgo(post.createdAt)}</span>
+                      </div>
+                    </Link>
+                    {isOwnProfile && post.status === 'REJECTED' && (
+                      <div className="pf-card__alert pf-card__alert--red">
+                        <p className="pf-card__alert-reason">{post.rejectReason || 'Không có lý do.'}</p>
+                        <button className="pf-appeal-btn" onClick={() => setAppealTarget({ type: 'post', id: post.id, title: post.title, rejectReason: post.rejectReason })}>
+                          Gửi khiếu nại →
+                        </button>
+                      </div>
+                    )}
+                    {isOwnProfile && post.status === 'PENDING' && post.appealMessage && (
+                      <div className="pf-card__alert pf-card__alert--amber">
+                        <p>Đã gửi khiếu nại · Admin đang xem xét</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="pf-empty">
+              <MessageSquare size={40} strokeWidth={1.2} />
+              <p>{isOwnProfile ? 'Bạn chưa đăng bài viết nào' : 'Chưa có bài viết nào'}</p>
+              {isOwnProfile && <Link to="/forum" className="pf-btn pf-btn--primary">Khám phá diễn đàn</Link>}
+            </div>
+          )
+        )}
+
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && isOwnProfile && (
+          attempts.length ? (
+            <div className="pf-history">
+              {attempts.map(att => {
+                const pct = att.totalQuestions > 0 ? (att.score / att.totalQuestions) * 100 : 0;
+                const scoreClass = pct >= 80 ? 'green' : pct >= 50 ? 'amber' : 'red';
+                return (
+                  <div key={att.id} className="pf-attempt">
+                    <div className="pf-attempt__left">
+                      <Link to={`/quiz/${att.quizId}`} className="pf-attempt__title">{att.quizTitle}</Link>
+                      <div className="pf-attempt__meta">
+                        <span className="pf-badge pf-badge--category" style={{ fontSize: '0.72rem' }}>{att.quizCategory}</span>
+                        <span className="pf-attempt__time"><Clock size={11} /> {formatDateTime(att.completedAt)}</span>
+                      </div>
+                      <div className="pf-attempt__bar-wrap">
+                        <div className="pf-attempt__bar">
+                          <div className={`pf-attempt__bar-fill pf-attempt__bar-fill--${scoreClass}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="pf-attempt__pct">{pct.toFixed(0)}%</span>
                       </div>
                     </div>
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      padding: '8px 16px', borderRadius: '12px', background: scoreBg, color: scoreColor, fontWeight: 800, minWidth: '85px'
-                    }}>
-                      <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{att.score}/{att.totalQuestions}</span>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', marginTop: '2px' }}>
-                        {percent.toFixed(0)}% Đúng
-                      </span>
+                    <div className={`pf-attempt__score pf-attempt__score--${scoreClass}`}>
+                      <span className="pf-attempt__score-num">{att.score}/{att.totalQuestions}</span>
+                      <span className="pf-attempt__score-label">Đúng</span>
                     </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="empty-state">
-              <p>Bạn chưa hoàn thành bài kiểm tra nào.</p>
-              <Link to="/explore" className="primary-btn" style={{ display: 'inline-block', marginTop: '10px' }}>Luyện tập ngay</Link>
+            <div className="pf-empty">
+              <Trophy size={40} strokeWidth={1.2} />
+              <p>Bạn chưa hoàn thành bài quiz nào</p>
+              <Link to="/explore" className="pf-btn pf-btn--primary">Luyện tập ngay</Link>
             </div>
-          )}
-        </div>
-      )}
+          )
+        )}
+      </div>
     </div>
   );
 };

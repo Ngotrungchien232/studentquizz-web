@@ -339,13 +339,18 @@ const ChatPage = () => {
                         )}
                         <div className={`chat-page__message-bubble-wrapper ${isOwn ? 'own' : 'other'}`}>
                           {!isOwn && (
-                            activeFriend.avatar ? (
-                              <img src={activeFriend.avatar} alt={activeFriend.name} className="chat-page__message-avatar" />
-                            ) : (
-                              <div className="chat-page__message-avatar-placeholder">
-                                {getInitials(activeFriend.name)}
-                              </div>
-                            )
+                            <div 
+                              onClick={() => setShowProfileModal(true)} 
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {activeFriend.avatar ? (
+                                <img src={activeFriend.avatar} alt={activeFriend.name} className="chat-page__message-avatar" />
+                              ) : (
+                                <div className="chat-page__message-avatar-placeholder">
+                                  {getInitials(activeFriend.name)}
+                                </div>
+                              )}
+                            </div>
                           )}
                           <div className="chat-page__message-bubble-container">
                             <div className="chat-page__message-bubble">
