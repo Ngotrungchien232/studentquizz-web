@@ -31,6 +31,7 @@ const Navbar = () => {
     { to: '/explore', label: 'Khám phá' },
     { to: '/create', label: 'Tạo Quiz' },
     { to: '/forum', label: 'Diễn đàn' },
+    { to: '/leaderboard', label: 'Xếp hạng' },
   ];
 
   // Fetch unread count and set up polling every 10s

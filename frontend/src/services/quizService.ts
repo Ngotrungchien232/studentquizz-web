@@ -66,6 +66,16 @@ export const quizService = {
     const { data } = await api.get('/quizzes/attempts/my');
     return data;
   },
+
+  getMostActiveLeaderboard: async (limit = 10): Promise<any[]> => {
+    const { data } = await api.get(`/leaderboards/active?limit=${limit}`);
+    return data;
+  },
+
+  getTopScoringLeaderboard: async (limit = 10): Promise<any[]> => {
+    const { data } = await api.get(`/leaderboards/scores?limit=${limit}`);
+    return data;
+  },
 };
 
 /* ─── Auth Service ─── */

@@ -17,7 +17,7 @@ type AppealTarget = {
   rejectReason?: string;
 };
 
-type Tab = 'quizzes' | 'posts' | 'history';
+type Tab = 'quizzes' | 'posts' | 'history' | 'friends';
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
   PENDING:  { bg: 'rgba(245,158,11,0.12)',  color: '#D97706', label: '⏳ Chờ duyệt' },
@@ -46,6 +46,7 @@ const ProfilePage: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [updatingProfile, setUpdatingProfile] = useState(false);
   const [attempts, setAttempts] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
 
   const isOwnProfile = !userId || parseInt(userId, 10) === currentUser?.id;
 
@@ -63,17 +64,23 @@ const ProfilePage: React.FC = () => {
       setProfile(data);
       setFriendshipStatus('SELF');
       try {
-        const attemptData = await quizService.getMyAttempts();
+        const [attemptData, friendData] = await Promise.all([
+          quizService.getMyAttempts(),
+          chatService.getFriends()
+        ]);
         setAttempts(attemptData);
+        setFriends(friendData);
       } catch { /* ignore */ }
     } else {
       const idNum = parseInt(userId!, 10);
-      const [data, statusRes] = await Promise.all([
+      const [data, statusRes, friendData] = await Promise.all([
         userService.getUserProfile(idNum),
         chatService.getFriendshipStatus(idNum),
+        chatService.getFriendsOfUser(idNum)
       ]);
       setProfile(data);
       setFriendshipStatus(statusRes.status);
+      setFriends(friendData);
     }
   };
 
@@ -178,6 +185,7 @@ const ProfilePage: React.FC = () => {
   const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { key: 'quizzes', label: 'Quiz', icon: <BookOpen size={15} />, count: profile.quizzes?.length },
     { key: 'posts',   label: 'Bài viết', icon: <MessageSquare size={15} />, count: profile.posts?.length },
+    { key: 'friends', label: 'Bạn bè', icon: <UserCheck size={15} />, count: friends.length },
     ...(isOwnProfile ? [{ key: 'history' as Tab, label: 'Lịch sử', icon: <Trophy size={15} />, count: attempts?.length }] : []),
   ];
 
@@ -468,6 +476,65 @@ const ProfilePage: React.FC = () => {
               <Trophy size={40} strokeWidth={1.2} />
               <p>Bạn chưa hoàn thành bài quiz nào</p>
               <Link to="/explore" className="pf-btn pf-btn--primary">Luyện tập ngay</Link>
+            </div>
+          )
+        )}
+
+        {/* FRIENDS TAB */}
+        {activeTab === 'friends' && (
+          friends.length ? (
+            <div className="pf-friends-grid">
+              {friends.map(friend => (
+                <div key={friend.id} className="pf-friend-card card">
+                  <div className="pf-friend-info">
+                    {friend.avatar ? (
+                      <img src={friend.avatar} alt={friend.name} className="pf-friend-avatar" />
+                    ) : (
+                      <div className="pf-friend-avatar-placeholder">
+                        {getInitials(friend.name)}
+                      </div>
+                    )}
+                    <span className="pf-friend-name">{friend.name}</span>
+                  </div>
+                  <div className="pf-friend-actions">
+                    <Link to={`/profile/${friend.id}`} className="pf-btn pf-btn--ghost-blue">
+                      Xem hồ sơ
+                    </Link>
+                    {isOwnProfile && (
+                      <>
+                        <button
+                          className="pf-btn pf-btn--ghost"
+                          onClick={() => navigate(`/chat/${friend.id}`)}
+                        >
+                          <MessageCircle size={14} /> Nhắn tin
+                        </button>
+                        <button
+                          className="pf-btn pf-btn--ghost-red"
+                          onClick={async () => {
+                            if (window.confirm(`Bạn có chắc muốn hủy kết bạn với ${friend.name}?`)) {
+                              try {
+                                await chatService.removeFriend(friend.id);
+                                await refreshProfile();
+                                showSuccess(`✅ Đã hủy kết bạn với ${friend.name}`);
+                              } catch (err: any) {
+                                alert(err.response?.data?.message || 'Có lỗi xảy ra.');
+                              }
+                            }
+                          }}
+                        >
+                          Hủy bạn
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="pf-empty">
+              <UserCheck size={40} strokeWidth={1.2} />
+              <p>{isOwnProfile ? 'Bạn chưa có người bạn nào' : 'Người dùng này chưa có bạn bè'}</p>
+              {isOwnProfile && <Link to="/explore" className="pf-btn pf-btn--primary">Khám phá & kết bạn</Link>}
             </div>
           )
         )}

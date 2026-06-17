@@ -45,6 +45,11 @@ public class FriendshipController {
         return ResponseEntity.ok(friendshipService.getFriendsList());
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<AuthorDto>> getUserFriendsList(@PathVariable Long userId) {
+        return ResponseEntity.ok(friendshipService.getUserFriendsList(userId));
+    }
+
     @GetMapping("/pending")
     public ResponseEntity<List<AuthorDto>> getPendingRequests() {
         return ResponseEntity.ok(friendshipService.getPendingRequests());

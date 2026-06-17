@@ -27,6 +27,7 @@ public class Question {
     @Column(nullable = false)
     private Integer correctAnswer; // 0-based index
 
+    @Column(columnDefinition = "TEXT")
     private String explanation;
 
     @ManyToOne(fetch = FetchType.LAZY)

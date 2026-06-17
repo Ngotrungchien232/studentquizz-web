@@ -13,6 +13,7 @@ import ForumPostPage from './pages/ForumPostPage';
 import QuizPlayPage from './pages/QuizPlayPage';
 import ProfilePage from './pages/ProfilePage';
 import ChatPage from './pages/ChatPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 import AdminApp from './admin/AdminApp';
 import NotificationModal from './components/NotificationModal';
 
@@ -37,6 +38,7 @@ function App() {
                 <Route path="/forum" element={<ForumPage />} />
                 <Route path="/forum/:id" element={<ForumPostPage />} />
                 <Route path="/quiz/:id" element={<QuizPlayPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
 
                 <Route path="/create" element={
                   <ProtectedRoute><CreatePage /></ProtectedRoute>

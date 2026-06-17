@@ -23,6 +23,7 @@ public class Quiz {
     @Column(nullable = false)
     private String category;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @Builder.Default

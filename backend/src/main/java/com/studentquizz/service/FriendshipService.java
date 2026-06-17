@@ -120,6 +120,21 @@ public class FriendshipService {
     }
 
     @Transactional(readOnly = true)
+    public List<AuthorDto> getUserFriendsList(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Người dùng không tồn tại."));
+        List<Friendship> friendships = friendshipRepository.findFriends(userId);
+        return friendships.stream().map(f -> {
+            User friend = f.getRequester().getId().equals(userId) ? f.getReceiver() : f.getRequester();
+            return AuthorDto.builder()
+                    .id(friend.getId())
+                    .name(friend.getName())
+                    .avatar(friend.getAvatar())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<AuthorDto> getPendingRequests() {
         User user = getCurrentUser();
         List<Friendship> pending = friendshipRepository.findPendingRequests(user.getId());

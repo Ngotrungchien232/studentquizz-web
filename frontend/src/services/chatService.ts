@@ -34,6 +34,11 @@ export const chatService = {
     return response.data;
   },
 
+  getFriendsOfUser: async (userId: number): Promise<Author[]> => {
+    const response = await api.get(`/friendships/user/${userId}`);
+    return response.data;
+  },
+
   getPendingRequests: async (): Promise<Author[]> => {
     const response = await api.get('/friendships/pending');
     return response.data;

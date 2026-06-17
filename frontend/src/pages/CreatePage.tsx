@@ -125,15 +125,18 @@ const CreatePage = () => {
       setTimeout(() => setProcessingStep(3), 2400);
 
       try {
-        const quiz = await quizService.create({
-          title,
-          category,
-          description,
-          questionCount: manualQuestions.length,
-          questions: manualQuestions
-        });
+        const [quiz] = await Promise.all([
+          quizService.create({
+            title,
+            category,
+            description,
+            questionCount: manualQuestions.length,
+            questions: manualQuestions
+          }),
+          new Promise(resolve => setTimeout(resolve, 3000))
+        ]);
         setCreatedQuizId(quiz.id);
-        setTimeout(() => setStep('done'), 3000);
+        setStep('done');
       } catch {
         setError('Đã có lỗi xảy ra khi lưu quiz. Vui lòng thử lại.');
         setStep('form');
@@ -145,9 +148,12 @@ const CreatePage = () => {
       simulateProcessing();
 
       try {
-        const quiz = await quizService.create({ title, category, description, questionCount }, file || undefined);
+        const [quiz] = await Promise.all([
+          quizService.create({ title, category, description, questionCount }, file || undefined),
+          new Promise(resolve => setTimeout(resolve, 4500))
+        ]);
         setCreatedQuizId(quiz.id);
-        setTimeout(() => setStep('done'), 4500);
+        setStep('done');
       } catch {
         setError('Đã có lỗi xảy ra khi tạo quiz. Vui lòng thử lại.');
         setStep('form');
