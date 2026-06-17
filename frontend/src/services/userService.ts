@@ -25,5 +25,14 @@ export const userService = {
   updateProfile: async (data: { name?: string; avatar?: string; password?: string }): Promise<UserProfile> => {
     const response = await api.put('/users/me', data);
     return response.data;
-  }
+  },
+  /** Upload ảnh avatar lên Cloudinary qua endpoint riêng, trả về UserProfile đã cập nhật */
+  uploadAvatar: async (file: File): Promise<UserProfile> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };

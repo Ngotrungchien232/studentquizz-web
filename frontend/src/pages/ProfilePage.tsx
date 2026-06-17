@@ -125,20 +125,31 @@ const ProfilePage: React.FC = () => {
     if (!editName.trim()) return;
     try {
       setUpdatingProfile(true);
-      let avatarUrl = profile?.avatar || '';
+      let updated;
       if (avatarFile) {
-        const res = await forumService.uploadAttachment(avatarFile);
-        avatarUrl = res.url;
+        // Bước 1: Upload avatar lên Cloudinary qua endpoint riêng (tự động cập nhật profile)
+        updated = await userService.uploadAvatar(avatarFile);
+        // Bước 2: Nếu có thay đổi tên hoặc mật khẩu thêm nữa thì cập nhật tiếp
+        if (editName !== profile?.name || editPassword) {
+          updated = await userService.updateProfile({
+            name: editName,
+            password: editPassword || undefined,
+          });
+        }
+      } else {
+        // Không có ảnh mới — chỉ cập nhật tên/mật khẩu
+        updated = await userService.updateProfile({
+          name: editName,
+          password: editPassword || undefined,
+          avatar: profile?.avatar,
+        });
       }
-      const updated = await userService.updateProfile({
-        name: editName, password: editPassword || undefined, avatar: avatarUrl,
-      });
       setProfile(updated);
       updateUser({ id: updated.id, name: updated.name, email: updated.email, avatar: updated.avatar });
       setShowEditModal(false);
       showSuccess('✅ Cập nhật hồ sơ thành công!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Không thể cập nhật hồ sơ.');
+      alert(err.response?.data?.message || err.response?.data?.error || 'Không thể cập nhật hồ sơ.');
     } finally {
       setUpdatingProfile(false);
     }

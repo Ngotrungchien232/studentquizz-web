@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, Tag, Link2, Paperclip, Image, FileText, Trash2, Upload } from 'lucide-react';
+import { X, Loader2, Tag, Link2, Paperclip, Image, FileText, Trash2 } from 'lucide-react';
 import { forumService } from '../../services/quizService';
 import type { ForumPost } from '../../types';
 import './CreatePostModal.css';
@@ -20,6 +20,8 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
   const [linkUrl, setLinkUrl] = useState('');
   const [attachment, setAttachment] = useState<{ url: string; name: string; type: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Preview ảnh ngay lập tức trước khi upload xong (local blob URL)
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -36,13 +38,22 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
       return;
     }
 
+    // Hiện preview ảnh ngay lập tức (local blob, không cần đợi upload xong)
+    if (file.type.startsWith('image/')) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(null);
+    }
+
     setUploading(true);
     setError('');
     try {
+      // Upload lên Cloudinary qua backend
       const res = await forumService.uploadAttachment(file);
       setAttachment(res);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Không thể tải tệp lên. Vui lòng kiểm tra định dạng.');
+      setImagePreview(null);
     } finally {
       setUploading(false);
     }
@@ -50,6 +61,7 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
 
   const handleRemoveAttachment = () => {
     setAttachment(null);
+    setImagePreview(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,6 +88,8 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
       setLoading(false);
     }
   };
+
+  const isImage = attachment?.type?.startsWith('image/');
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -139,7 +153,7 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
             </div>
           </div>
 
-          {/* External Link Attachment */}
+          {/* External Link */}
           <div className="form-group">
             <label className="form-label">
               <Link2 size={14} /> Gắn liên kết ngoài (Tùy chọn)
@@ -153,40 +167,64 @@ const CreatePostModal = ({ onClose, onCreated }: Props) => {
             />
           </div>
 
-          {/* File Attachment */}
+          {/* File / Image Attachment */}
           <div className="form-group">
             <label className="form-label">
               <Paperclip size={14} /> Đính kèm tệp tin (Ảnh, PDF, Docx) (Tùy chọn)
             </label>
 
-            {attachment ? (
-              <div className="modal-attachment-preview">
-                <div className="attachment-info">
-                  {attachment.type.startsWith('image/') ? (
-                    <Image size={18} className="attachment-icon-preview text-primary" />
-                  ) : (
-                    <FileText size={18} className="attachment-icon-preview text-primary" />
-                  )}
-                  <span className="attachment-name" title={attachment.name}>{attachment.name}</span>
+            {/* Đang upload — hiện spinner + preview tạm thời */}
+            {uploading && (
+              <div className="modal-uploading-preview">
+                {imagePreview && (
+                  <img src={imagePreview} alt="preview" className="modal-img-preview modal-img-preview--uploading" />
+                )}
+                <div className="modal-uploading-bar">
+                  <Loader2 size={16} className="spin" />
+                  <span>Đang tải lên Cloudinary...</span>
                 </div>
-                <button type="button" className="btn-remove-attachment" onClick={handleRemoveAttachment} aria-label="Xóa đính kèm">
-                  <Trash2 size={14} />
+              </div>
+            )}
+
+            {/* Upload xong + là ảnh — hiện thumbnail thực tế */}
+            {!uploading && attachment && isImage && (
+              <div className="modal-img-container">
+                <img src={attachment.url} alt={attachment.name} className="modal-img-preview" />
+                <button
+                  type="button"
+                  className="modal-img-remove"
+                  onClick={handleRemoveAttachment}
+                  aria-label="Xóa ảnh"
+                >
+                  <X size={14} />
                 </button>
               </div>
-            ) : (
+            )}
+
+            {/* Upload xong + là file — hiện tên file */}
+            {!uploading && attachment && !isImage && (
+              <div className="modal-attachment-preview">
+                <div className="attachment-info">
+                  <FileText size={18} className="attachment-icon-preview text-primary" />
+                  <span className="attachment-name" title={attachment.name}>{attachment.name}</span>
+                  <button
+                    type="button"
+                    className="btn-remove-attachment"
+                    onClick={handleRemoveAttachment}
+                    aria-label="Xóa đính kèm"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Chưa có file nào — hiện nút chọn */}
+            {!uploading && !attachment && (
               <div className="modal-file-upload">
                 <label className="file-upload-label">
-                  {uploading ? (
-                    <>
-                      <Loader2 size={16} className="spin" />
-                      <span>Đang tải tệp lên...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={16} />
-                      <span>Chọn Ảnh, PDF, hoặc Docx (nhỏ hơn 20MB)</span>
-                    </>
-                  )}
+                  <Image size={16} />
+                  <span>Chọn Ảnh, PDF, hoặc Docx (nhỏ hơn 20MB)</span>
                   <input
                     type="file"
                     accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx"
