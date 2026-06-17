@@ -16,6 +16,7 @@ import ChatPage from './pages/ChatPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AdminApp from './admin/AdminApp';
 import NotificationModal from './components/NotificationModal';
+import SupportChatbot from './components/SupportChatbot/SupportChatbot';
 
 function App() {
   return (
@@ -68,6 +69,7 @@ function App() {
                   </main>
                 } />
               </Routes>
+              <SupportChatbot />
               <Footer />
             </div>
           } />
