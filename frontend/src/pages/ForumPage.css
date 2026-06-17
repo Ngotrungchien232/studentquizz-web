@@ -382,3 +382,26 @@
   border-radius: 6px;
 }
 
+/* Inline Image Previews */
+.fpc-image-preview-wrap {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 200px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.fpc-image-card-preview {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.forum-post-card:hover .fpc-image-card-preview {
+  transform: scale(1.025);
+}
+

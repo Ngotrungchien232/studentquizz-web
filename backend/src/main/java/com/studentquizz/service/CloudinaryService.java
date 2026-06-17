@@ -64,20 +64,30 @@ public class CloudinaryService {
         boolean isImage = List.of(".png", ".jpg", ".jpeg", ".gif", ".webp").contains(ext);
 
         Map<String, Object> options;
+        String randomId = java.util.UUID.randomUUID().toString();
+
         if (isImage) {
+            String nameWithoutExt = dotIndex >= 0 ? originalFilename.substring(0, dotIndex) : originalFilename;
+            String cleanName = nameWithoutExt.replaceAll("[^a-zA-Z0-9.-]", "_");
+            if (cleanName.length() > 60) {
+                cleanName = cleanName.substring(0, 60);
+            }
+            String publicId = "studentquizz/images/" + randomId + "_" + cleanName;
+
             options = ObjectUtils.asMap(
-                    "folder", "studentquizz/images",
-                    "resource_type", "image",
-                    "use_filename", false,
-                    "unique_filename", true
+                    "public_id", publicId,
+                    "resource_type", "image"
             );
         } else {
-            // raw cho PDF, DOCX
+            String cleanName = originalFilename.replaceAll("[^a-zA-Z0-9.-]", "_");
+            if (cleanName.length() > 80) {
+                cleanName = cleanName.substring(cleanName.length() - 80);
+            }
+            String publicId = "studentquizz/files/" + randomId + "_" + cleanName;
+
             options = ObjectUtils.asMap(
-                    "folder", "studentquizz/files",
-                    "resource_type", "raw",
-                    "use_filename", false,
-                    "unique_filename", true
+                    "public_id", publicId,
+                    "resource_type", "raw"
             );
         }
 

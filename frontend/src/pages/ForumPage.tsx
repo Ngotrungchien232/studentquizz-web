@@ -15,6 +15,19 @@ const getInitials = (name: string) =>
 
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
 
+const isImageAttachment = (url?: string, type?: string) => {
+  if (!url) return false;
+  if (type && type.startsWith('image/')) return true;
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.endsWith('.png') || 
+         lowerUrl.endsWith('.jpg') || 
+         lowerUrl.endsWith('.jpeg') || 
+         lowerUrl.endsWith('.gif') || 
+         lowerUrl.endsWith('.webp') ||
+         lowerUrl.includes('/studentquizz/images/') ||
+         lowerUrl.includes('/image/upload/');
+};
+
 const ForumPage = () => {
   const [selectedAuthorId, setSelectedAuthorId] = useState<number | null>(null);
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -206,12 +219,22 @@ const ForumPage = () => {
                     )}
 
                     {/* Attachments / Link indicators */}
-                    {(post.attachmentName || post.linkUrl) && (
+                    {(post.attachmentUrl || post.linkUrl) && (
                       <div className="fpc-attachments-indicator">
-                        {post.attachmentName && (
-                          <span className="fpc-attachment-badge">
-                            <Paperclip size={12} /> {post.attachmentName}
-                          </span>
+                        {post.attachmentUrl && (
+                          isImageAttachment(post.attachmentUrl, post.attachmentType) ? (
+                            <div className="fpc-image-preview-wrap">
+                              <img
+                                src={post.attachmentUrl}
+                                alt={post.attachmentName || 'Đính kèm'}
+                                className="fpc-image-card-preview"
+                              />
+                            </div>
+                          ) : (
+                            <span className="fpc-attachment-badge">
+                              <Paperclip size={12} /> {post.attachmentName}
+                            </span>
+                          )
                         )}
                         {post.linkUrl && (
                           <span className="fpc-link-badge">

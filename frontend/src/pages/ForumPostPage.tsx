@@ -12,6 +12,19 @@ import './ForumPostPage.css';
 
 const AVATAR_COLORS = ['#7C3AED', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
 
+const isImageAttachment = (url?: string, type?: string) => {
+  if (!url) return false;
+  if (type && type.startsWith('image/')) return true;
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.endsWith('.png') || 
+         lowerUrl.endsWith('.jpg') || 
+         lowerUrl.endsWith('.jpeg') || 
+         lowerUrl.endsWith('.gif') || 
+         lowerUrl.endsWith('.webp') ||
+         lowerUrl.includes('/studentquizz/images/') ||
+         lowerUrl.includes('/image/upload/');
+};
+
 const getInitials = (name: string) =>
   name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
@@ -169,7 +182,7 @@ const ForumPostPage = () => {
             {/* File Attachment Section */}
             {post.attachmentUrl && (
               <div className="fpa-attachment-section">
-                {post.attachmentType?.startsWith('image/') ? (
+                {isImageAttachment(post.attachmentUrl, post.attachmentType) ? (
                   <div className="fpa-image-wrapper">
                     <img
                       src={post.attachmentUrl}
