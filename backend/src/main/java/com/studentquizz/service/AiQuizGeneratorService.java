@@ -42,6 +42,7 @@ public class AiQuizGeneratorService {
         }
 
         String prompt = buildPrompt(text, questionCount, title);
+        Exception lastException = null;
 
         // Thử từng model theo thứ tự
         for (String model : MODEL_FALLBACK_CHAIN) {
@@ -53,6 +54,7 @@ public class AiQuizGeneratorService {
                     return questions;
                 }
             } catch (HttpClientErrorException e) {
+                lastException = e;
                 if (e.getStatusCode().value() == 429) {
                     log.warn("⚠️ Model {} bị giới hạn quota (429). Thử model tiếp theo...", model);
                 } else if (e.getStatusCode().value() == 404) {
@@ -61,12 +63,21 @@ public class AiQuizGeneratorService {
                     log.error("❌ Lỗi HTTP {} khi gọi model {}: {}", e.getStatusCode().value(), model, e.getMessage());
                 }
             } catch (Exception e) {
+                lastException = e;
                 log.error("❌ Lỗi khi gọi model {}: {}", model, e.getMessage());
             }
         }
 
-        log.error("❌ Tất cả model đều thất bại. Quota có thể đã hết. Sử dụng câu hỏi mẫu fallback.");
-        return generateMockQuestions(title, questionCount);
+        log.error("❌ Tất cả model đều thất bại. Không thể kết nối tới Gemini API.");
+        if (lastException != null) {
+            String errorMsg = lastException.getMessage();
+            if (lastException instanceof HttpClientErrorException) {
+                HttpClientErrorException hex = (HttpClientErrorException) lastException;
+                errorMsg = String.format("HTTP %d: %s", hex.getStatusCode().value(), hex.getResponseBodyAsString());
+            }
+            throw new RuntimeException("Lỗi kết nối Gemini AI: " + errorMsg);
+        }
+        throw new RuntimeException("Tất cả model AI đều thất bại mà không rõ nguyên nhân.");
     }
 
     private List<QuestionDto> callGeminiModel(String model, String prompt) throws Exception {
